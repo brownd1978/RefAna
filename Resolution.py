@@ -1,6 +1,5 @@
 # Compare upstream and downstream resolution at tracker mid for e- reflections
 #
-
 import awkward as ak
 import behaviors
 from matplotlib import pyplot as plt
@@ -21,16 +20,24 @@ files = [
 "/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00010872.root:TAReM/ntuple",
 "/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00015026.root:TAReM/ntuple" ]
 
+#with uproot.open(file) as f:
 
-
-with uproot.open(file) as f:
-#for batch,rep in uproot.iterate(files,filter_name=\"/trk|trksegs|trkmcsim/i\",report=True):\n",
-    tree = f['TAReM']['ntuple']
-    segs = tree['trksegs'].array(library='ak') # track fit samples
-    nhits = tree['trk.nactive'].array(library='ak') # track
-    fitcon = tree['trk.fitcon'].array(library='ak') # track fit
-    trkMC = tree['trkmcsim'].array(library='ak') # MC genealogy of particles
-    trkSegMC = tree['trksegsmc'].array(library='ak') # SurfaceStep infor for true primary particle
+DeltaEntTime = []
+DeltaEntTimeElMC =[]
+DeltaEntTimeMuMC =[]
+DeltaEntTimeDeMC =[]
+UpMidMom = []
+DeltaMidMom = []
+ibatch=0
+for batch,rep in uproot.iterate(files,filter_name="/trk|trksegs|trkmcsim|gtrksegsmc/i",report=True):
+    print("Processing batch ",ibatch)
+    ibatch = ibatch+1
+#    tree = f['TAReM']['ntuple']
+    segs = batch['trksegs'] #.array(library='ak') # track fit samples
+    nhits = batch['trk.nactive'] #.array(library='ak') # track
+    fitcon = batch['trk.fitcon'] #.array(library='ak') # track fit
+    trkMC = batch['trkmcsim'] #.array(library='ak') # MC genealogy of particles
+    trkSegMC = batch['trksegsmc'] #.array(library='ak') # SurfaceStep infor for true primary particle
 #    ak.type(segs).show()
 #    print("segs axis 0: ",ak.num(segs,axis=0))
 #    print("segs axis 1: ",ak.num(segs,axis=1))
@@ -42,16 +49,16 @@ with uproot.open(file) as f:
     dnFitCon = fitcon[:,1]
     upNhits = nhits[:,0]
     dnNhits = nhits[:,1]
-    print(len(upFitCon),upFitCon)
-    print(len(dnFitCon),dnFitCon)
-    print(len(upNhits),upNhits)
-    print(len(dnNhits),dnNhits)
-
+#    print(len(upFitCon),upFitCon)
+#    print(len(dnFitCon),dnFitCon)
+#    print(len(upNhits),upNhits)
+#    print(len(dnNhits),dnNhits)
 
 # select based on time difference at tracker entrance
     upEntTime = upSegs[(upSegs.sid==0) & (upSegs.mom.z() > 0.0) ].time
     dnEntTime = dnSegs[(dnSegs.sid==0) & (dnSegs.mom.z() > 0.0) ].time
     deltaEntTime = upEntTime-dnEntTime
+    DeltaEntTime.extend(ak.flatten(deltaEntTime))
 # select by MC truth
     upTrkMC = trkMC[:,0] # upstream fit associated true particles
     dnTrkMC = trkMC[:,1] # downstream fit associated true particles
@@ -72,6 +79,10 @@ with uproot.open(file) as f:
     deltaEntTimeElMC = deltaEntTime[elMC]
     deltaEntTimeMuMC = deltaEntTime[muMC]
     deltaEntTimeDeMC = deltaEntTime[deMC]
+    DeltaEntTimeElMC.extend(ak.flatten(deltaEntTimeElMC))
+    DeltaEntTimeMuMC.extend(ak.flatten(deltaEntTimeMuMC))
+    DeltaEntTimeDeMC.extend(ak.flatten(deltaEntTimeDeMC))
+
 #    print(deltaEntTimeElMC)
 #    print(deltaEntTimeMuMC)
 
@@ -85,7 +96,7 @@ with uproot.open(file) as f:
     upGoodFit = (upNhits >= minNHits) & (upFitCon > minFitCon)
     dnGoodFit = (dnNhits >= minNHits) & (dnFitCon > minFitCon)
     goodfit = upGoodFit & dnGoodFit
-    print(goodfit,len(goodfit))
+#    print(goodfit,len(goodfit))
 
     # sample the fits at middle of traacker
     upMidSegs = upSegs[upSegs.sid==1]
@@ -101,6 +112,7 @@ with uproot.open(file) as f:
     # select: first PID and fit quality
     upMidMom = upMidMom[goodele & goodfit]
     dnMidMom = dnMidMom[goodele & goodfit]
+    UpMidMom.extend(upMidMom)
 
     # momentum range around a conversion electron
     cemom = 104
@@ -115,23 +127,27 @@ with uproot.open(file) as f:
 
     deltaMidMom = upMidMom - dnMidMom
     deltaMidMom = deltaMidMom[signalLike]
-    print("Selected ", len(upMidMom)," total and ",len(deltaMidMom)," signal-like tracks")
+    DeltaMidMom.extend(deltaMidMom)
 
+print("Selected ", len(UpMidMom)," total and ",len(DeltaMidMom)," signal-like tracks")
+#print(len(DeltaEntTime),len(DeltaEntTimeElMC))
+#print(deltaEntTime)
+#print(DeltaEntTime)
 fig, deltat = plt.subplots(1,1,layout='constrained', figsize=(5,5))
 nbins = 100
 trange=(-20,20)
-dt =     deltat.hist(deltaEntTime,label="All", bins=nbins, range=trange, histtype='bar', stacked=True)
-dtElMC = deltat.hist(deltaEntTimeElMC,label="True Electron", bins=nbins, range=trange, histtype='bar', stacked=True)
-dtMuMC = deltat.hist(deltaEntTimeMuMC,label="True Muon", bins=nbins, range=trange, histtype='bar', stacked=True)
-dtDeMC = deltat.hist(deltaEntTimeDeMC,label="Muon Decays", bins=nbins, range=trange, histtype='bar', stacked=True)
+dt =     deltat.hist(DeltaEntTime,label="All", bins=nbins, range=trange, histtype='bar', stacked=True)
+dtElMC = deltat.hist(DeltaEntTimeElMC,label="True Electron", bins=nbins, range=trange, histtype='bar', stacked=True)
+dtMuMC = deltat.hist(DeltaEntTimeMuMC,label="True Muon", bins=nbins, range=trange, histtype='bar', stacked=True)
+dtDeMC = deltat.hist(DeltaEntTimeDeMC,label="Muon Decays", bins=nbins, range=trange, histtype='bar', stacked=True)
 deltat.set_title("$\\Delta$ Fit Time at Tracker Entrance")
 deltat.set_xlabel("Upstream time - Downstreamtime (nSec)")
 deltat.legend()
 plt.show()
 
 fig, (upMom, deltaMom) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
-upMom.hist(upMidMom,label="Upstream Mid Tracker P", bins=100, range=(70.0,150.0), histtype='step')
-deltaMom.hist(deltaMidMom,label="Upstream - Downstream Mid Tracker P", bins=100, range=(-10,10), histtype='step')
+upMom.hist(UpMidMom,label="Upstream Mid Tracker P", bins=100, range=(70.0,150.0), histtype='step')
+deltaMom.hist(DeltaMidMom,label="Upstream - Downstream Mid Tracker P", bins=100, range=(-10,10), histtype='step')
 upMom.set_xlabel("Fit Momentum (MeV)")
 deltaMom.set_xlabel("$\\Delta$ Fit Momentum (MeV)")
 plt.show()
