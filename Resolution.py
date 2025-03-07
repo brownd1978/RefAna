@@ -5,6 +5,15 @@ import behaviors
 from matplotlib import pyplot as plt
 import uproot
 import numpy as np
+from scipy.optimize import curve_fit
+import math
+from scipy import special
+
+def fxn_expGauss(x, amp, mu, sigma, lamb):
+    z = (mu + lamb*(sigma**2) - x)/(np.sqrt(2)*sigma)
+    comp_err_func = special.erfc(z)
+    val = amp*(lamb/2)*((math.e)**((lamb/2)*(2*mu+lamb*(sigma**2)-2*x)))*comp_err_func
+    return val
 
 #file = '/home/online1/ejc/public/brownd/dts.mu2e.CeEndpoint.MDC2020r.001210_00000000.art.digi.art.ntuple.root'
 #file = '/data/HD5/users/brownd/ntp.brownd.Reflections.v4.root'
@@ -20,8 +29,6 @@ files = [
 "/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00010057.root:TAReM/ntuple",
 "/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00010872.root:TAReM/ntuple",
 "/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00015026.root:TAReM/ntuple" ]
-
-#with uproot.open(file) as f:
 
 DeltaEntTime = []
 DeltaEntTimeElMC =[]
@@ -210,36 +217,77 @@ pur = NgoodEl/Ngood
 print("For |Delta T| < ", maxDeltaT , " efficiency = ",eff," purity = ",pur)
 # plot DeltaT
 fig, deltat = plt.subplots(1,1,layout='constrained', figsize=(5,5))
-nbins = 100
+nDeltaTBins = 100
 trange=(-20,20)
-dt =     deltat.hist(DeltaEntTime,label="All", bins=nbins, range=trange, histtype='bar', stacked=True)
-dtElMC = deltat.hist(DeltaEntTimeElMC,label="True Electron", bins=nbins, range=trange, histtype='bar', stacked=True)
-dtMuMC = deltat.hist(DeltaEntTimeMuMC,label="True Muon", bins=nbins, range=trange, histtype='bar', stacked=True)
-dtDeMC = deltat.hist(DeltaEntTimeDeMC,label="Muon Decays", bins=nbins, range=trange, histtype='bar', stacked=True)
+dt =     deltat.hist(DeltaEntTime,label="All", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+dtElMC = deltat.hist(DeltaEntTimeElMC,label="True Electron", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+dtMuMC = deltat.hist(DeltaEntTimeMuMC,label="True Muon", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+dtDeMC = deltat.hist(DeltaEntTimeDeMC,label="Muon Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
 deltat.set_title("$\\Delta$ Fit Time at Tracker Entrance")
 deltat.set_xlabel("Upstream time - Downstreamtime (nSec)")
 deltat.legend()
-plt.show()
 # plot Momentum
+nDeltaMomBins = 200
+nMomBins = 100
 fig, (upMom, deltaMom) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
-upMom.hist(UpMidMom,label="All Upstream", bins=100, range=(70.0,150.0), histtype='step')
-upMom.hist(UpGoodMidMom,label="Selected Upstream", bins=100, range=(70.0,150.0), histtype='step')
+upMom.hist(UpMidMom,label="All Upstream $e^-$", bins=nMomBins, range=(70.0,150.0), histtype='step')
+upMom.hist(UpGoodMidMom,label="Selected Upstream $e^-$", bins=nMomBins, range=(70.0,150.0), histtype='step')
 upMom.set_title("Upstream Momentum at Tracker Mid")
 upMom.set_xlabel("Fit Momentum (MeV)")
 upMom.legend()
-deltaMom.hist(DeltaMidMom,label="Fit $\\Delta$ P", bins=100, range=(-5,15), histtype='step')
-deltaMom.hist(DeltaMidMomMC,label="MC $\\Delta$ P", bins=100, range=(-5,15), histtype='step')
+DeltaMomHist = deltaMom.hist(DeltaMidMom,label="Fit $\\Delta$ P", bins=nDeltaMomBins, range=(-5,15), histtype='step')
+DeltaMomHistMC = deltaMom.hist(DeltaMidMomMC,label="MC $\\Delta$ P", bins=nDeltaMomBins, range=(-5,15), histtype='step')
 deltaMom.set_xlabel("$\\Delta$ Fit Momentum (MeV)")
 deltaMom.set_title("Upstream -Downstream Tracker Mid Momentum")
 deltaMom.legend()
-plt.show()
+
+# fit
+DeltaMomHistErrors = np.zeros(len(DeltaMomHist[1])-1)
+DeltaMomHistBinMid =np.zeros(len(DeltaMomHist[1])-1)
+for ibin in range(len(DeltaMomHist[1])-1):
+    DeltaMomHistBinMid[ibin] = 0.5*(DeltaMomHist[1][ibin] + DeltaMomHist[1][ibin+1])
+    DeltaMomHistErrors[ibin] = max(1.0,math.sqrt(DeltaMomHist[0][ibin]))
+#print(DeltaMomHistBinErrors)
+DeltaMomHistIntegral = np.sum(DeltaMomHist[0])
+# initialize the fit parameters
+mu_0 = np.mean(DeltaMomHistBinMid*DeltaMomHist[0]/DeltaMomHistIntegral) # initial mean
+var = np.sum(((DeltaMomHistBinMid**2)*DeltaMomHist[0])/DeltaMomHistIntegral) - mu_0**2
+sigma_0 = np.sqrt(var) # initial sigma
+lamb_0 = sigma_0 # initial exponential (guess)
+binsize = DeltaMomHist[1][1]-DeltaMomHist[1][0]
+amp_0 = DeltaMomHistIntegral*binsize # initial amplitude
+p0 = np.array([amp_0, mu_0, sigma_0, lamb_0]) # initial parameters
+# fit, returing optimum parameters and covariance
+popt, pcov = curve_fit(fxn_expGauss, DeltaMomHistBinMid, DeltaMomHist[0], p0, sigma=DeltaMomHistErrors)
+print("Trk fit parameters",popt)
+print("Trk fit covariance",pcov)
+fig, (Trk,MC) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
+Trk.stairs(edges=DeltaMomHist[1],values=DeltaMomHist[0],label="Track $\\Delta$ P")
+Trk.plot(DeltaMomHistBinMid, fxn_expGauss(DeltaMomHistBinMid, *popt), 'r-',label="EMG Fit")
+Trk.legend()
+Trk.set_title('EMG fit to Track $\\Delta$ P')
+Trk.set_xlabel("Upstream - Downstream Momentum (MeV)")
+# now fit MC for comparison
+for ibin in range(len(DeltaMomHistMC[1])-1):
+    DeltaMomHistBinMid[ibin] = 0.5*(DeltaMomHistMC[1][ibin] + DeltaMomHistMC[1][ibin+1])
+    DeltaMomHistErrors[ibin] = max(1.0,math.sqrt(DeltaMomHistMC[0][ibin]))
+popt, pcov = curve_fit(fxn_expGauss, DeltaMomHistBinMid, DeltaMomHistMC[0], p0, sigma=DeltaMomHistErrors)
+print("MC Fit parameters",popt)
+print("MC Fit covariance",pcov)
+MC.stairs(edges=DeltaMomHistMC[1],values=DeltaMomHistMC[0],label="MC $\\Delta$ P")
+MC.plot(DeltaMomHistBinMid, fxn_expGauss(DeltaMomHistBinMid, *popt), 'r-',label="EMG Fit")
+MC.legend()
+MC.set_title('EMG fit to MC $\\Delta$ P')
+MC.set_xlabel("Upstream - Downstream Momentum (MeV)")
+
 # plot momentum resolution
+nMomResBins = 200
 fig, (upMomRes, dnMomRes)= plt.subplots(1,2,layout='constrained', figsize=(10,5))
-upMomRes.hist(UpMomRes,label="Upstream",bins=100, range=(-3.0,3.0), histtype='bar')
-upMomRes.set_title("Upstream Momentum  Resolution at Tracker Mid")
+upMomRes.hist(UpMomRes,label="Upstream",bins=nMomResBins, range=(-2.5,2.5), histtype='bar')
+upMomRes.set_title("Upstream Momentum Resolution at Tracker Mid")
 upMomRes.set_xlabel("Reco - True Momentum (MeV)")
-dnMomRes.hist(DnMomRes,label="Downstream",bins=100, range=(-3.0,3.0), histtype='bar')
-dnMomRes.set_title("Downstream Momentum  Resolution at Tracker Mid")
+dnMomRes.hist(DnMomRes,label="Downstream",bins=nMomResBins, range=(-2.5,2.5), histtype='bar')
+dnMomRes.set_title("Downstream Momentum Resolution at Tracker Mid")
 dnMomRes.set_xlabel("Reco - True Momentum (MeV)")
 plt.show()
 
