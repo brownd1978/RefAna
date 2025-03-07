@@ -10,9 +10,9 @@ import math
 from scipy import special
 
 def fxn_expGauss(x, amp, mu, sigma, lamb):
-    z = (mu + lamb*(sigma**2) - x)/(np.sqrt(2)*sigma)
+    z = (mu + lamb*(sigma**2) + x)/(np.sqrt(2)*sigma)
     comp_err_func = special.erfc(z)
-    val = amp*(lamb/2)*((math.e)**((lamb/2)*(2*mu+lamb*(sigma**2)-2*x)))*comp_err_func
+    val = amp*(lamb/2)*((math.e)**((lamb/2)*(2*mu+lamb*(sigma**2)+2*x)))*comp_err_func
     return val
 
 #file = '/home/online1/ejc/public/brownd/dts.mu2e.CeEndpoint.MDC2020r.001210_00000000.art.digi.art.ntuple.root'
@@ -36,6 +36,8 @@ DeltaEntTimeMuMC =[]
 DeltaEntTimeDeMC =[]
 UpMidMom = []
 UpGoodMidMom = []
+DnMidMom = []
+DnGoodMidMom = []
 DeltaMidMom = []
 DeltaMidMomMC = []
 UpMomRes = []
@@ -93,7 +95,7 @@ for batch,rep in uproot.iterate(files,filter_name="/trk|trksegs|trkmcsim|gtrkseg
 # select based on time difference at tracker entrance
     upEntTime = upSegs[(upSegs.sid==trkEntSID) & (upSegs.mom.z() > 0.0) ].time
     dnEntTime = dnSegs[(dnSegs.sid==trkEntSID) & (dnSegs.mom.z() > 0.0) ].time
-    deltaEntTime = upEntTime-dnEntTime
+    deltaEntTime = dnEntTime-upEntTime
     DeltaEntTime.extend(ak.flatten(deltaEntTime))
 # select by MC truth
     upTrkMC = upTrkMC[upTrkMC.trkrel._rel == 0] # select the true particle most associated with the track
@@ -161,7 +163,7 @@ for batch,rep in uproot.iterate(files,filter_name="/trk|trksegs|trkmcsim|gtrkseg
 #    print("midmom ",len(upMidMom),len(dnMidMom))
     # select 'signal-like' electrons. For now, just the momentum, later maybe add
     # consistency with the target and pitch cuts
-    signalLike = (dnMidMom > minMom) & (dnMidMom < maxMom)
+    signalLike = ((dnMidMom > minMom) & (dnMidMom < maxMom)) | ((upMidMom > minMom) & (upMidMom < maxMom))
 #    print(len(signalLike))
 
     hasUpMidMomMC = ak.count_nonzero(upMidMomMC,axis=1,keepdims=True)==1
@@ -196,12 +198,14 @@ for batch,rep in uproot.iterate(files,filter_name="/trk|trksegs|trkmcsim|gtrkseg
     # select based on reco
     upGoodMidMom = upMidMom[goodReco]
     dnGoodMidMom = dnMidMom[goodReco]
+    DnMidMom.extend(dnMidMom)
+    DnGoodMidMom.extend(dnGoodMidMom)
     UpMidMom.extend(upMidMom)
     UpGoodMidMom.extend(upGoodMidMom)
     # reflection momentum difference
-    deltaMidMom = upGoodMidMom - dnGoodMidMom
+    deltaMidMom = dnGoodMidMom - upGoodMidMom
     DeltaMidMom.extend(deltaMidMom)
-    deltaMidMomMC = upResMomMC-dnResMomMC
+    deltaMidMomMC = dnResMomMC-upResMomMC
     DeltaMidMomMC.extend(deltaMidMomMC)
 
 # compute purity sums
@@ -209,7 +213,7 @@ for batch,rep in uproot.iterate(files,filter_name="/trk|trksegs|trkmcsim|gtrkseg
     NEl = NEl + len(deltaEntTime[elMC])
     NgoodEl = NgoodEl + len(deltaEntTime[elMC & goodDeltaT])
 
-print("From ", len(UpMidMom)," total, selected ",len(DeltaMidMom)," good quality signal-like reflections and ",len(UpMomRes)," reflections for resolution")
+print("From ", len(DnMidMom)," total, selected ",len(DeltaMidMom)," good quality signal-like reflections and ",len(DnMomRes)," reflections for resolution")
 
 # compute Delta-T PID performance metrics
 eff = NgoodEl/NEl
@@ -224,23 +228,31 @@ dtElMC = deltat.hist(DeltaEntTimeElMC,label="True Electron", bins=nDeltaTBins, r
 dtMuMC = deltat.hist(DeltaEntTimeMuMC,label="True Muon", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
 dtDeMC = deltat.hist(DeltaEntTimeDeMC,label="Muon Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
 deltat.set_title("$\\Delta$ Fit Time at Tracker Entrance")
-deltat.set_xlabel("Upstream time - Downstreamtime (nSec)")
+deltat.set_xlabel("Downstream - Upstream Time (nSec)")
 deltat.legend()
 # plot Momentum
 nDeltaMomBins = 200
 nMomBins = 100
-fig, (upMom, deltaMom) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
-upMom.hist(UpMidMom,label="All Upstream $e^-$", bins=nMomBins, range=(70.0,150.0), histtype='step')
-upMom.hist(UpGoodMidMom,label="Selected Upstream $e^-$", bins=nMomBins, range=(70.0,150.0), histtype='step')
+momrange=(70.0,150.0)
+deltamomrange=(-15,5)
+fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(10,5))
+dnMom.hist(DnMidMom,label="All Downstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
+dnMom.hist(DnGoodMidMom,label="Selected Downstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
+dnMom.set_title("Downstream Momentum at Tracker Mid")
+dnMom.set_xlabel("Fit Momentum (MeV)")
+dnMom.legend()
+#
+upMom.hist(UpMidMom,label="All Upstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
+upMom.hist(UpGoodMidMom,label="Selected Upstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
 upMom.set_title("Upstream Momentum at Tracker Mid")
 upMom.set_xlabel("Fit Momentum (MeV)")
 upMom.legend()
-DeltaMomHist = deltaMom.hist(DeltaMidMom,label="Fit $\\Delta$ P", bins=nDeltaMomBins, range=(-5,15), histtype='step')
-DeltaMomHistMC = deltaMom.hist(DeltaMidMomMC,label="MC $\\Delta$ P", bins=nDeltaMomBins, range=(-5,15), histtype='step')
-deltaMom.set_xlabel("$\\Delta$ Fit Momentum (MeV)")
-deltaMom.set_title("Upstream -Downstream Tracker Mid Momentum")
+#
+DeltaMomHist = deltaMom.hist(DeltaMidMom,label="Fit $\\Delta$ P", bins=nDeltaMomBins, range=deltamomrange, histtype='step')
+DeltaMomHistMC = deltaMom.hist(DeltaMidMomMC,label="MC $\\Delta$ P", bins=nDeltaMomBins, range=deltamomrange, histtype='step')
+deltaMom.set_xlabel("Downstream - Upstream Momentum (MeV)")
+deltaMom.set_title("$\\Delta$ Fit Momentum at Tracker Middle")
 deltaMom.legend()
-
 # fit
 DeltaMomHistErrors = np.zeros(len(DeltaMomHist[1])-1)
 DeltaMomHistBinMid =np.zeros(len(DeltaMomHist[1])-1)
@@ -266,7 +278,10 @@ Trk.stairs(edges=DeltaMomHist[1],values=DeltaMomHist[0],label="Track $\\Delta$ P
 Trk.plot(DeltaMomHistBinMid, fxn_expGauss(DeltaMomHistBinMid, *popt), 'r-',label="EMG Fit")
 Trk.legend()
 Trk.set_title('EMG fit to Track $\\Delta$ P')
-Trk.set_xlabel("Upstream - Downstream Momentum (MeV)")
+Trk.set_xlabel("Downstream - Upstream Momentum (MeV)")
+fig.text(0.1, 0.5, f"$\\mu$ = {popt[1]:.3f}")
+fig.text(0.1, 0.4, f"$\\sigma$ = {popt[2]:.3f}")
+fig.text(0.1, 0.3,  f"$\\lambda$ = {popt[3]:.3f}")
 # now fit MC for comparison
 for ibin in range(len(DeltaMomHistMC[1])-1):
     DeltaMomHistBinMid[ibin] = 0.5*(DeltaMomHistMC[1][ibin] + DeltaMomHistMC[1][ibin+1])
@@ -278,8 +293,10 @@ MC.stairs(edges=DeltaMomHistMC[1],values=DeltaMomHistMC[0],label="MC $\\Delta$ P
 MC.plot(DeltaMomHistBinMid, fxn_expGauss(DeltaMomHistBinMid, *popt), 'r-',label="EMG Fit")
 MC.legend()
 MC.set_title('EMG fit to MC $\\Delta$ P')
-MC.set_xlabel("Upstream - Downstream Momentum (MeV)")
-
+MC.set_xlabel("Downstream - Upstream Momentum (MeV)")
+fig.text(0.6, 0.5, f"$\\mu$ = {popt[1]:.3f}")
+fig.text(0.6, 0.4, f"$\\sigma$ = {popt[2]:.3f}")
+fig.text(0.6, 0.3,  f"$\\lambda$ = {popt[3]:.3f}")
 # plot momentum resolution
 nMomResBins = 200
 fig, (upMomRes, dnMomRes)= plt.subplots(1,2,layout='constrained', figsize=(10,5))
