@@ -130,3 +130,7 @@ dmypy.json
 
 # fitting lots
 logs
+
+# vim
+*.swp
+*.swo
