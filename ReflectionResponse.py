@@ -17,20 +17,20 @@ def fxn_expGauss(x, amp, mu, sigma, lamb):
 
 #file = '/home/online1/ejc/public/brownd/dts.mu2e.CeEndpoint.MDC2020r.001210_00000000.art.digi.art.ntuple.root'
 #file = '/data/HD5/users/brownd/ntp.brownd.Reflections.v4.root'
-#file = [ "/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000000.root:TAReM/ntuple" ]
-file = [ "/Users/brownd/data/nts.brownd.TAReflect.TARef.001202_00000000.root:TAReM/ntuple" ]
-#files = [
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000000.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000010.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000024.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000053.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000085.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00004963.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00005432.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00010057.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00010872.root:TAReM/ntuple",
-#"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00015026.root:TAReM/ntuple" ]
-files = [
+fl03file = [ "/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000000.root:TAReM/ntuple" ]
+mbfile = [ "/Users/brownd/data/nts.brownd.TAReflect.TARef.001202_00000000.root:TAReM/ntuple" ]
+fl03files = [
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000000.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000010.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000024.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000053.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00000085.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00004963.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00005432.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00010057.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00010872.root:TAReM/ntuple",
+"/data/HD5/users/brownd/71077187/nts.brownd.TAReflect.TARef.001202_00015026.root:TAReM/ntuple" ]
+mbfiles = [
         "nts.mu2e.DIOtail_95OnSpillTriggered.MDC2020aq_best_v1_3_v06_03_00.001210_00000007.root",
         "nts.mu2e.DIOtail_95OnSpillTriggered.MDC2020aq_best_v1_3_v06_03_00.001210_00000000.root",
         "nts.mu2e.DIOtail_95OnSpillTriggered.MDC2020aq_best_v1_3_v06_03_00.001210_00000004.root",
@@ -71,7 +71,7 @@ trkMidSID = 1
 Ngood = 0
 NgoodEl = 0
 NEl = 0
-for batch,rep in uproot.iterate(file,filter_name="/trk|trksegs|trkmcsim|gtrksegsmc/i",report=True):
+for batch,rep in uproot.iterate(fl03files,filter_name="/trk|trksegs|trkmcsim|gtrksegsmc/i",report=True):
     print("Processing batch ",ibatch)
     ibatch = ibatch+1
     segs = batch['trksegs'] # track fit samples
@@ -240,11 +240,14 @@ dtDeMC = deltat.hist(DeltaEntTimeDeMC,label="Muon Decays", bins=nDeltaTBins, ran
 deltat.set_title("$\\Delta$ Fit Time at Tracker Entrance")
 deltat.set_xlabel("Downstream - Upstream Time (nSec)")
 deltat.legend()
-# plot Momentum
+fig.text(0.1, 0.5, f"|$\\Delta$ T| < {maxDeltaT:.2f}")
+fig.text(0.1, 0.4, f"$e^-$ purity = {pur:.3f}")
+fig.text(0.1, 0.3,  f"$e^-$ efficiency = {eff:.3f}")
 nDeltaMomBins = 200
 nMomBins = 100
 momrange=(70.0,150.0)
-deltamomrange=(-15,5)
+momresorange=(-2.5,2.5)
+deltamomrange=(-10,5)
 fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(10,5))
 dnMom.hist(DnMidMom,label="All Downstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
 dnMom.hist(DnGoodMidMom,label="Selected Downstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
@@ -310,10 +313,10 @@ fig.text(0.6, 0.3,  f"$\\lambda$ = {popt[3]:.3f}")
 # plot momentum resolution
 nMomResBins = 200
 fig, (upMomRes, dnMomRes)= plt.subplots(1,2,layout='constrained', figsize=(10,5))
-upMomRes.hist(UpMomRes,label="Upstream",bins=nMomResBins, range=(-2.5,2.5), histtype='bar')
+upMomRes.hist(UpMomRes,label="Upstream",bins=nMomResBins, range=momresorange, histtype='bar')
 upMomRes.set_title("Upstream Momentum Resolution at Tracker Mid")
 upMomRes.set_xlabel("Reco - True Momentum (MeV)")
-dnMomRes.hist(DnMomRes,label="Downstream",bins=nMomResBins, range=(-2.5,2.5), histtype='bar')
+dnMomRes.hist(DnMomRes,label="Downstream",bins=nMomResBins, range=momresorange, histtype='bar')
 dnMomRes.set_title("Downstream Momentum Resolution at Tracker Mid")
 dnMomRes.set_xlabel("Reco - True Momentum (MeV)")
 plt.show()
