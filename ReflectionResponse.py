@@ -40,25 +40,54 @@ mbfiles = [
         "nts.mu2e.DIOtail_95OnSpillTriggered.MDC2020aq_best_v1_3_v06_03_00.001210_00000006.root",
         "nts.mu2e.DIOtail_95OnSpillTriggered.MDC2020aq_best_v1_3_v06_03_00.001210_00000009.root",
         "nts.mu2e.DIOtail_95OnSpillTriggered.MDC2020aq_best_v1_3_v06_03_00.001210_00000002.root" ]
+offfiles = [
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00000010.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00000518.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00001032.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00001547.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00002057.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00002561.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00003067.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00003570.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00004074.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00004577.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00005081.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00005616.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00006156.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00006706.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00007246.root:TARe/ntuple",
+#"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00007764.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00008324.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00008894.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00009535.root:TARe/ntuple",
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00013483.root:TARe/ntuple"
+]
 DeltaEntTime = []
 DeltaEntTimeElMC =[]
 DeltaEntTimeMuMC =[]
-DeltaEntTimeDeMC =[]
+DeltaEntTimeDkMC =[]
+
+SelectedDeltaEntTime = []
+SelectedDeltaEntTimeElMC =[]
+SelectedDeltaEntTimeMuMC =[]
+SelectedDeltaEntTimeDkMC =[]
 UpMidMom = []
-UpGoodMidMom = []
+UpSignalMidMom = []
 DnMidMom = []
-DnGoodMidMom = []
+DnSignalMidMom = []
 DeltaMidMom = []
 DeltaMidMomMC = []
-UpMomRes = []
-DnMomRes = []
+# counts
+NReflect = 0
+NRecoReflect = 0
+NeMinusReflect = 0
 # setup general constants
 minNHits = 20
 minFitCon = 1.0e-5
 maxDeltaT = 5.0 # nsec
 ibatch=0
-elPDG = 11
-muPDG = 13
+ElPDG = 11
+MuPDG = 13
 # momentum range around a conversion electron
 cemom = 104
 dmom = 20
@@ -67,16 +96,13 @@ maxMom = cemom + dmom
 # Surface Ids
 trkEntSID = 0
 trkMidSID = 1
-# counts for purity and efficiency
-Ngood = 0
-NgoodEl = 0
-NEl = 0
-for batch,rep in uproot.iterate(fl03files,filter_name="/trk|trksegs|trkmcsim|gtrksegsmc/i",report=True):
+for batch,rep in uproot.iterate(offfiles,filter_name="/trk|trksegs|trkmcsim|gtrksegsmc/i",report=True):
     print("Processing batch ",ibatch)
     ibatch = ibatch+1
     segs = batch['trksegs'] # track fit samples
     nhits = batch['trk.nactive']  # track N hits
     fitcon = batch['trk.fitcon']  # track fit consistency
+    fitpdg = batch['trk.pdg']  # track fit consistency
     trkMC = batch['trkmcsim']  # MC genealogy of particles
     segsMC = batch['trksegsmc'] # SurfaceStep infor for true primary particle
 #    ak.type(segs).show()
@@ -93,6 +119,8 @@ for batch,rep in uproot.iterate(fl03files,filter_name="/trk|trksegs|trkmcsim|gtr
     assert((len(upSegs) == len(dnSegs)) & (len(upSegsMC) == len(dnSegsMC)) & (len(upSegs) == len(upSegsMC))& (len(upTrkMC) == len(dnTrkMC)) & (len(upSegs) == len(upTrkMC)))
 #    print(upSegsMC)
 #    print(len(fitcon), fitcon)
+    upFitPDG = fitpdg[:,0]
+    dnFitPDG = fitpdg[:,1]
     upFitCon = fitcon[:,0]
     dnFitCon = fitcon[:,1]
     upNhits = nhits[:,0]
@@ -102,89 +130,92 @@ for batch,rep in uproot.iterate(fl03files,filter_name="/trk|trksegs|trkmcsim|gtr
 #    print(len(upNhits),upNhits)
 #    print(len(dnNhits),dnNhits)
 
-# select based on time difference at tracker entrance
-    upEntTime = upSegs[(upSegs.sid==trkEntSID) & (upSegs.mom.z() > 0.0) ].time
-    dnEntTime = dnSegs[(dnSegs.sid==trkEntSID) & (dnSegs.mom.z() > 0.0) ].time
-    deltaEntTime = dnEntTime-upEntTime
-    DeltaEntTime.extend(ak.flatten(deltaEntTime))
-# select by MC truth
-    upTrkMC = upTrkMC[upTrkMC.trkrel._rel == 0] # select the true particle most associated with the track
-    dnTrkMC = dnTrkMC[dnTrkMC.trkrel._rel == 0]
-    upTrkMC = ak.flatten(upTrkMC,axis=1) # project out the struct
-    dnTrkMC = ak.flatten(dnTrkMC,axis=1)
-
-#    print( len(upTrkMC))
-
-    upElMC = upTrkMC.pdg == elPDG
-    dnElMC = dnTrkMC.pdg == elPDG
-    upMuMC = upTrkMC.pdg == muPDG
-    dnMuMC = dnTrkMC.pdg == muPDG
-    elMC = upElMC & dnElMC
-    muMC = upMuMC & dnMuMC
-    deMC = upMuMC & dnElMC
-    deltaEntTimeElMC = deltaEntTime[elMC]
-    deltaEntTimeMuMC = deltaEntTime[muMC]
-    deltaEntTimeDeMC = deltaEntTime[deMC]
-    DeltaEntTimeElMC.extend(ak.flatten(deltaEntTimeElMC))
-    DeltaEntTimeMuMC.extend(ak.flatten(deltaEntTimeMuMC))
-    DeltaEntTimeDeMC.extend(ak.flatten(deltaEntTimeDeMC))
-
-#    print(deltaEntTimeElMC)
-#    print(deltaEntTimeMuMC)
-
-# select good electron fits based on time difference at tracker entrance
-
-    goodDeltaT = abs(deltaEntTime) < maxDeltaT
-    goodDeltaT = ak.flatten(goodDeltaT)
-
-
-#    print(goodDeltaT,len(goodDeltaT))
+# select electron fits
+    upEMinus = (upFitPDG == ElPDG)
+    dnEMinus = (dnFitPDG == ElPDG)
+    eMinusFit = upEMinus & dnEMinus
 # select based on fit quality
     upGoodFit = (upNhits >= minNHits) & (upFitCon > minFitCon)
     dnGoodFit = (dnNhits >= minNHits) & (dnFitCon > minFitCon)
     goodFit = upGoodFit & dnGoodFit
-#    print(goodFit,len(goodFit))
+    goodReco = eMinusFit & goodFit
+    NReflect = NReflect + len(goodReco)
+    NRecoReflect = NRecoReflect + sum(goodReco)
+# select based on time difference at tracker entrance
+    upEntTime = upSegs[(upSegs.sid==trkEntSID) & (upSegs.mom.z() > 0.0) ].time
+    dnEntTime = dnSegs[(dnSegs.sid==trkEntSID) & (dnSegs.mom.z() > 0.0) ].time
+    deltaEntTime = dnEntTime-upEntTime
+    goodDeltaT = abs(deltaEntTime) < maxDeltaT
+    DeltaEntTime.extend(ak.flatten(deltaEntTime[goodReco]))
+# good electron
+    goodeMinus = goodReco & goodDeltaT
+    goodeMinus = ak.ravel(goodeMinus)
+    NeMinusReflect = NeMinusReflect + sum(goodeMinus)
+# total momentum at tracker mid, upstream and downstream fits
+    upMidMom = upSegs[(upSegs.sid == trkMidSID)].mom.magnitude()
+    dnMidMom = dnSegs[(dnSegs.sid == trkMidSID)].mom.magnitude()
+    DnMidMom.extend(ak.flatten(dnMidMom,axis=1))
+    UpMidMom.extend(ak.flatten(upMidMom,axis=1))
+# select fits that look like signal electrons: this needs to include a target constraint TODO
+    print("upmid",upMidMom,len(upMidMom),ak.count(upMidMom,axis=None))
+    print("dnmid",dnMidMom,len(dnMidMom),ak.count(upMidMom,axis=None))
+    testsame = ak.num(upMidMom,axis=1) == ak.num(dnMidMom,axis=1)
+    print(ak.all(testsame))
+    signalMomRange = (((dnMidMom > minMom) & (dnMidMom < maxMom)) | ((upMidMom > minMom) & (upMidMom < maxMom)))
+    signalMomRange = ak.ravel(signalMomRange)
+    goodSignaleMinus = signalMomRange & goodeMinus
+    SelectedDeltaEntTime.extend(ak.flatten(deltaEntTime[goodReco & signalMomRange]))
 
+    upSignalMidMom = upMidMom[goodSignaleMinus]
+    dnSignalMidMom = dnMidMom[goodSignaleMinus]
+    UpSignalMidMom.extend(ak.flatten(upSignalMidMom,axis=1))
+    DnSignalMidMom.extend(ak.flatten(dnSignalMidMom,axis=1))
+# reflection momentum difference of signal-like electrons
+    deltaMidMom = dnSignalMidMom - upSignalMidMom
+    DeltaMidMom.extend(ak.flatten(deltaMidMom,axis=1))
 
-    # sample the fits at middle of traacker
-    upMidSegs = upSegs[upSegs.sid== trkMidSID]
-    dnMidSegs = dnSegs[dnSegs.sid== trkMidSID]
+# Process MC truth
+# first select the most closesly-related MC particle
+    upTrkMC = upTrkMC[(upTrkMC.trkrel._rel == 0)]
+    dnTrkMC = dnTrkMC[(dnTrkMC.trkrel._rel == 0)]
+#    upTrkMC = ak.flatten(upTrkMC,axis=1) # project out the struct
+#    dnTrkMC = ak.flatten(dnTrkMC,axis=1)
+
+# selections based on particle species
+    upElMC = (upTrkMC.pdg == ElPDG)
+    dnElMC = (dnTrkMC.pdg == ElPDG)
+    upMuMC = (upTrkMC.pdg == MuPDG)
+    dnMuMC = (dnTrkMC.pdg == MuPDG)
+    elMC = upElMC & dnElMC
+    muMC = upMuMC & dnMuMC
+    dkMC = upMuMC & dnElMC # decays in flight
+# select MC truth of entrance times
+    DeltaEntTimeElMC.extend(ak.flatten(deltaEntTime[goodReco & elMC]))
+    DeltaEntTimeMuMC.extend(ak.flatten(deltaEntTime[goodReco & muMC]))
+    DeltaEntTimeDkMC.extend(ak.flatten(deltaEntTime[goodReco & dkMC]))
+
+    SelectedDeltaEntTimeElMC.extend(ak.flatten(deltaEntTime[goodReco & signalMomRange & elMC]))
+    SelectedDeltaEntTimeMuMC.extend(ak.flatten(deltaEntTime[goodReco & signalMomRange & muMC]))
+    SelectedDeltaEntTimeDkMC.extend(ak.flatten(deltaEntTime[goodReco & signalMomRange & dkMC]))
+
     upMidSegsMC = upSegsMC[upSegsMC.sid== trkMidSID]
     dnMidSegsMC = dnSegsMC[dnSegsMC.sid== trkMidSID]
-#    print("Mid seg counts ",len(upMidSegs),len(dnMidSegs),len(upMidSegsMC),len(dnMidSegsMC),len(elMC),len(goodFit),len(goodDeltaT))
-#    print(upMidSegs[0:10])
-#    print(upMidSegsMC[0:10])
 
-    # total momentum at tracker mid
-    upMidMom = upMidSegs.mom.magnitude()
-    dnMidMom = dnMidSegs.mom.magnitude()
     upMidMomMC = upMidSegsMC.mom.magnitude()
     dnMidMomMC = dnMidSegsMC.mom.magnitude()
-    # select correct direction
+# select correct direction
     upMidMomMC = upMidMomMC[upMidSegsMC.mom.z()<0]
     dnMidMomMC = dnMidMomMC[dnMidSegsMC.mom.z()>0]
-#    print("midMomMC",len(upMidMomMC),len(dnMidMomMC))
-#    print("before flatten",len(upMidMom),len(dnMidMom),len(upMidMomMC),len(dnMidMomMC))
-#    print(upMidMomMC[0:10])
-#    print(dnMidMomMC[0:10])
-    # flatten
-    upMidMom = ak.flatten(upMidMom,axis=1)
-    dnMidMom = ak.flatten(dnMidMom,axis=1)
-#    print("midmom ",len(upMidMom),len(dnMidMom))
-    # select 'signal-like' electrons. For now, just the momentum, later maybe add
-    # consistency with the target and pitch cuts
-    signalLike = ((dnMidMom > minMom) & (dnMidMom < maxMom)) | ((upMidMom > minMom) & (upMidMom < maxMom))
-#    print(len(signalLike))
-
+#
     hasUpMidMomMC = ak.count_nonzero(upMidMomMC,axis=1,keepdims=True)==1
     hasDnMidMomMC = ak.count_nonzero(dnMidMomMC,axis=1,keepdims=True)==1
     hasUpMidMomMC = ak.flatten(hasUpMidMomMC)
     hasDnMidMomMC = ak.flatten(hasDnMidMomMC)
 #    print("hasMC",len(hasUpMidMomMC),len(hasDnMidMomMC))
 #    print(hasUpMidMomMC)
-    goodReco = goodFit & goodDeltaT & signalLike
-    goodMC = elMC & hasUpMidMomMC & hasDnMidMomMC
-    goodRes = goodReco & goodMC  # resolution plot requires a good MC match
+    goodMC = goodSignaleMinus & elMC & hasUpMidMomMC & hasDnMidMomMC
+#    print("goodeMinus",goodeMinus)
+    goodRes = goodeMinus & goodMC  # resolution plot requires a good MC match
 #    print("goodres",goodRes)
     upResMom = upMidMom[goodRes]
     dnResMom = dnMidMom[goodRes]
@@ -196,67 +227,62 @@ for batch,rep in uproot.iterate(fl03files,filter_name="/trk|trksegs|trkmcsim|gtr
     dnResMomMC = ak.ravel(dnResMomMC)
     upResMomMC = ak.ravel(upResMomMC)
 #    print("resmom after flatten",len(upResMom),len(dnResMom),len(upResMomMC),len(dnResMomMC))
-    upMomRes = upResMom-upResMomMC
-    UpMomRes.extend(upMomRes)
-    dnMomRes = dnResMom-dnResMomMC
-    DnMomRes.extend(dnMomRes)
 
     upMidMomMC = ak.ravel(upMidMomMC)
     dnMidMomMC = ak.ravel(dnMidMomMC)
  #   print(upMidMom[0:10],upMidMomMC[0:10])
 
-    # select based on reco
-    upGoodMidMom = upMidMom[goodReco]
-    dnGoodMidMom = dnMidMom[goodReco]
-    DnMidMom.extend(dnMidMom)
-    DnGoodMidMom.extend(dnGoodMidMom)
-    UpMidMom.extend(upMidMom)
-    UpGoodMidMom.extend(upGoodMidMom)
-    # reflection momentum difference
-    deltaMidMom = dnGoodMidMom - upGoodMidMom
-    DeltaMidMom.extend(deltaMidMom)
     deltaMidMomMC = dnResMomMC-upResMomMC
     DeltaMidMomMC.extend(deltaMidMomMC)
 
-# compute purity sums
-    Ngood = Ngood + len(deltaEntTime[goodDeltaT])
-    NEl = NEl + len(deltaEntTime[elMC])
-    NgoodEl = NgoodEl + len(deltaEntTime[elMC & goodDeltaT])
-
-print("From ", len(DnMidMom)," total, selected ",len(DeltaMidMom)," good quality signal-like reflections and ",len(DnMomRes)," reflections for resolution")
+print("From ", NReflect," total reflections", NRecoReflect," good quality reco with ", NeMinusReflect, " confirmed eminus and ", len(DeltaMidMom), "signal-like reflections for resolution")
 
 # compute Delta-T PID performance metrics
+goodDT = np.abs(np.array(DeltaEntTime)) < maxDeltaT
+Ngood = sum( goodDT )
+goodElDT = np.abs(np.array(DeltaEntTimeElMC)) < maxDeltaT
+NgoodEl = sum( goodElDT)
+NEl = len(DeltaEntTimeElMC)
 eff = NgoodEl/NEl
 pur = NgoodEl/Ngood
 print("For |Delta T| < ", maxDeltaT , " efficiency = ",eff," purity = ",pur)
 # plot DeltaT
-fig, deltat = plt.subplots(1,1,layout='constrained', figsize=(5,5))
+fig, (deltat, seldeltat) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
 nDeltaTBins = 100
 trange=(-20,20)
 dt =     deltat.hist(DeltaEntTime,label="All", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
 dtElMC = deltat.hist(DeltaEntTimeElMC,label="True Electron", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
 dtMuMC = deltat.hist(DeltaEntTimeMuMC,label="True Muon", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
-dtDeMC = deltat.hist(DeltaEntTimeDeMC,label="Muon Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+dtDkMC = deltat.hist(DeltaEntTimeDkMC,label="Muon Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
 deltat.set_title("$\\Delta$ Fit Time at Tracker Entrance")
 deltat.set_xlabel("Downstream - Upstream Time (nSec)")
 deltat.legend()
 fig.text(0.1, 0.5, f"|$\\Delta$ T| < {maxDeltaT:.2f}")
 fig.text(0.1, 0.4, f"$e^-$ purity = {pur:.3f}")
 fig.text(0.1, 0.3,  f"$e^-$ efficiency = {eff:.3f}")
+seldt =     seldeltat.hist(SelectedDeltaEntTime,label="All", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+seldtElMC = seldeltat.hist(SelectedDeltaEntTimeElMC,label="True Electron", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+seldtMuMC = seldeltat.hist(SelectedDeltaEntTimeMuMC,label="True Muon", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+seldtDkMC = seldeltat.hist(SelectedDeltaEntTimeDkMC,label="Muon Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+seldeltat.set_title("Signal-like $\\Delta$ Fit Time at Tracker Entrance")
+seldeltat.set_xlabel("Downstream - Upstream Time (nSec)")
+seldeltat.legend()
+
+
 nDeltaMomBins = 200
 nMomBins = 100
-momrange=(70.0,150.0)
+momrange=(50.0,180.0)
 momresorange=(-2.5,2.5)
 deltamomrange=(-10,5)
 fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(10,5))
 dnMom.hist(DnMidMom,label="All Downstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
-dnMom.hist(DnGoodMidMom,label="Selected Downstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
+dnMom.hist(DnSignalMidMom,label="Selected Downstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
 dnMom.set_title("Downstream Momentum at Tracker Mid")
 dnMom.set_xlabel("Fit Momentum (MeV)")
 dnMom.legend()
 #
 upMom.hist(UpMidMom,label="All Upstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
-upMom.hist(UpGoodMidMom,label="Selected Upstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
+upMom.hist(UpSignalMidMom,label="Selected Upstream $e^-$", bins=nMomBins, range=momrange, histtype='step')
 upMom.set_title("Upstream Momentum at Tracker Mid")
 upMom.set_xlabel("Fit Momentum (MeV)")
 upMom.legend()
@@ -264,7 +290,7 @@ upMom.legend()
 DeltaMomHist = deltaMom.hist(DeltaMidMom,label="Fit $\\Delta$ P", bins=nDeltaMomBins, range=deltamomrange, histtype='step')
 DeltaMomHistMC = deltaMom.hist(DeltaMidMomMC,label="MC $\\Delta$ P", bins=nDeltaMomBins, range=deltamomrange, histtype='step')
 deltaMom.set_xlabel("Downstream - Upstream Momentum (MeV)")
-deltaMom.set_title("$\\Delta$ Fit Momentum at Tracker Middle")
+deltaMom.set_title("$\\Delta$ Momentum at Tracker Middle")
 deltaMom.legend()
 # fit
 DeltaMomHistErrors = np.zeros(len(DeltaMomHist[1])-1)
@@ -310,15 +336,4 @@ MC.set_xlabel("Downstream - Upstream Momentum (MeV)")
 fig.text(0.6, 0.5, f"$\\mu$ = {popt[1]:.3f}")
 fig.text(0.6, 0.4, f"$\\sigma$ = {popt[2]:.3f}")
 fig.text(0.6, 0.3,  f"$\\lambda$ = {popt[3]:.3f}")
-# plot momentum resolution
-nMomResBins = 200
-fig, (upMomRes, dnMomRes)= plt.subplots(1,2,layout='constrained', figsize=(10,5))
-upMomRes.hist(UpMomRes,label="Upstream",bins=nMomResBins, range=momresorange, histtype='bar')
-upMomRes.set_title("Upstream Momentum Resolution at Tracker Mid")
-upMomRes.set_xlabel("Reco - True Momentum (MeV)")
-dnMomRes.hist(DnMomRes,label="Downstream",bins=nMomResBins, range=momresorange, histtype='bar')
-dnMomRes.set_title("Downstream Momentum Resolution at Tracker Mid")
-dnMomRes.set_xlabel("Reco - True Momentum (MeV)")
-plt.show()
 
-# plot dnstream and downstream momentum  Resolution
