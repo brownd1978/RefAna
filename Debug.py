@@ -42,26 +42,7 @@ mbfiles = [
         "nts.mu2e.DIOtail_95OnSpillTriggered.MDC2020aq_best_v1_3_v06_03_00.001210_00000009.root",
         "nts.mu2e.DIOtail_95OnSpillTriggered.MDC2020aq_best_v1_3_v06_03_00.001210_00000002.root" ]
 offfiles = [
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00000010.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00000518.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00001032.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00001547.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00002057.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00002561.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00003067.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00003570.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00004074.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00004577.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00005081.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00005616.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00006156.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00006706.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00007246.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00007764.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00008324.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00008894.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00009535.root:TARe/ntuple",
-"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00013483.root:TARe/ntuple"
+"/data/HD5/users/brownd/61803286/nts.brownd.TAReflect.CRYAllOffSpill.001202_00007764.root:TARe/ntuple"
 ]
 DeltaEntTime = []
 DeltaEntTimeElMC =[]
@@ -97,7 +78,7 @@ maxMom = cemom + dmom
 # Surface Ids
 trkEntSID = 0
 trkMidSID = 1
-for batch,rep in uproot.iterate(offfiles,filter_name="/trk|trksegs|trkmcsim|gtrksegsmc/i",report=True):
+for batch,rep in uproot.iterate(offfiles,filter_name="/evtinfo|trk|trksegs|trkmcsim|gtrksegsmc/i",report=True):
     print("Processing batch ",ibatch)
     ibatch = ibatch+1
     segs = batch['trksegs'] # track fit samples
@@ -106,10 +87,9 @@ for batch,rep in uproot.iterate(offfiles,filter_name="/trk|trksegs|trkmcsim|gtrk
     fitpdg = batch['trk.pdg']  # track fit consistency
     trkMC = batch['trkmcsim']  # MC genealogy of particles
     segsMC = batch['trksegsmc'] # SurfaceStep infor for true primary particle
-#    ak.type(segs).show()
-#    print("segs axis 0: ",ak.num(segs,axis=0))
-#    print("segs axis 1: ",ak.num(segs,axis=1))
-#    print("segs axis 2: ",ak.num(segs,axis=2))
+    run = batch['run']
+    subrun = batch['subrun']
+    event = batch['event']
     upSegs = segs[:,0] # upstream track fits
     dnSegs = segs[:,1] # downstream track fits
     upSegsMC = segsMC[:,0] # upstream track MC truth
@@ -158,14 +138,11 @@ for batch,rep in uproot.iterate(offfiles,filter_name="/trk|trksegs|trkmcsim|gtrk
     DnMidMom.extend(ak.flatten(dnMidMom,axis=1))
     UpMidMom.extend(ak.flatten(upMidMom,axis=1))
 # select fits that look like signal electrons: this needs to include a target constraint TODO
-#    testsame = ak.num(upMidMom,axis=1) == ak.num(dnMidMom,axis=1)
-#    print(ak.all(testsame))
 # protect against missing intersections
     signalMomRange = [False]*len(upMidMom)
     for i in range(0,len(upMidMom)):
         if (len(upMidMom[i]) ==1) & (len(dnMidMom[i]) == 1):
             signalMomRange[i] = (dnMidMom[i][0] > minMom) & (dnMidMom[i][0] < maxMom) & (upMidMom[i][0] > minMom) & (upMidMom[i][0] < maxMom)
-
     goodSignaleMinus = signalMomRange & goodeMinus
     SelectedDeltaEntTime.extend(ak.flatten(deltaEntTime[goodReco & signalMomRange]))
 
@@ -274,7 +251,7 @@ seldeltat.legend()
 
 nDeltaMomBins = 200
 nMomBins = 100
-momrange=(40.0,200.0)
+momrange=(50.0,180.0)
 momresorange=(-2.5,2.5)
 deltamomrange=(-10,5)
 fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(10,5))
