@@ -20,27 +20,21 @@ def fxn_expGauss(x, amp, mu, sigma, lamb):
 
 class RefResp(object):
     def __init__(self,momrange,sigpdg,bkgpdg):
-        self.Momrange = momrange
         # PDG cods of signal and background particles
         self.SigPDG = sigpdg
         self.BkgPDG = bkgpdg
-        PDGNames = {-13:"$\\mu^+$",-11:"$e^+$",11:"signal",13:"$\\mu^-$"}
+        PDGNames = {-13:"$\\mu^+$",-11:"$e^+$",11:"$e^-$",13:"$\\mu^-$"}
         self.SigPDGName = PDGNames[self.SigPDG]
         self.BkgPDGName = PDGNames[self.BkgPDG]
-        # setup cuts
+        # setup cuts; these should be overrideable FIXME
         self.MinNHits = 20
         self.MinFitCon = 1.0e-5
         self.MaxDeltaT = 5.0 # nsec
-        # momentum range around a conversion electron, make these default parameters TODO
-        cemom = 104
-        dmom = 20
-        self.MinMom = cemom - 0.5*momrange
-        self.MaxMom = cemom + 0.5*momrange
+        self.MomRange = momrange
         # Surface Ids
         self.TrkEntSID = 0
         self.TrkMidSID = 1
-        print("In RefResp constructor")
-# treename should include the directory of the tree
+
     def Print(self):
         print("ReflectionResponse object, nhits =",self.MinNHits)
 
@@ -65,12 +59,13 @@ class RefResp(object):
         NRecoReflect = 0
         NsigPartReflect = 0
         # append tree to files for uproot
-        Files = files
+        Files = [None]*len(files)
         for i in range(0,len(files)):
-            Files[i] = Files[i]+":"+treename
+            Files[i] = files[i]+":"+treename
         ibatch = 0
+        print("Processing batch ",end=' ')
         for batch,rep in uproot.iterate(Files,filter_name="/trk|trksegs|trkmcsim|gtrksegsmc/i",report=True):
-            print("Processing batch ",ibatch)
+            print(ibatch,end=' ')
             ibatch = ibatch+1
             segs = batch['trksegs'] # track fit samples
             nhits = batch['trk.nactive']  # track N hits
@@ -120,12 +115,11 @@ class RefResp(object):
             UpMidMom.extend(ak.flatten(upMidMom,axis=1))
         # select fits that look like signal electrons: this needs to include a target constraint TODO
         #    testsame = ak.num(upMidMom,axis=1) == ak.num(dnMidMom,axis=1)
-        #    print(ak.all(testsame))
         # protect against missing intersections
             signalMomRange = [False]*len(upMidMom)
             for i in range(0,len(upMidMom)):
                 if (len(upMidMom[i]) ==1) & (len(dnMidMom[i]) == 1):
-                    signalMomRange[i] = (dnMidMom[i][0] > self.MinMom) & (dnMidMom[i][0] < self.MaxMom) & (upMidMom[i][0] > self.MinMom) & (upMidMom[i][0] < self.MaxMom)
+                    signalMomRange[i] = (dnMidMom[i][0] > self.MomRange[0]) & (dnMidMom[i][0] < self.MomRange[1]) & (upMidMom[i][0] > self.MomRange[0]) & (upMidMom[i][0] < self.MomRange[1])
             goodSignalsigPart = signalMomRange & goodsigPart
             SelectedDeltaEntTime.extend(ak.flatten(deltaEntTime[goodReco & signalMomRange]))
             upSignalMidMom = upMidMom[goodSignalsigPart]
@@ -169,30 +163,22 @@ class RefResp(object):
             hasDnMidMomMC = ak.count_nonzero(dnMidMomMC,axis=1,keepdims=True)==1
             hasUpMidMomMC = ak.flatten(hasUpMidMomMC)
             hasDnMidMomMC = ak.flatten(hasDnMidMomMC)
-        #    print("hasMC",len(hasUpMidMomMC),len(hasDnMidMomMC))
-        #    print(hasUpMidMomMC)
             goodMC = goodSignalsigPart & sigMC & hasUpMidMomMC & hasDnMidMomMC
-        #    print("goodsigPart",goodsigPart)
             goodRes = goodsigPart & goodMC  # resolution plot requires a good MC match
-        #    print("goodres",goodRes)
             upResMom = upMidMom[goodRes]
             dnResMom = dnMidMom[goodRes]
             upResMomMC = upMidMomMC[goodRes]
             dnResMomMC = dnMidMomMC[goodRes]
-        #    print("resmom before flatten",len(upResMom),len(dnResMom),len(upResMomMC),len(dnResMomMC))
             dnResMom = ak.ravel(dnResMom)
             upResMom = ak.ravel(upResMom)
             dnResMomMC = ak.ravel(dnResMomMC)
             upResMomMC = ak.ravel(upResMomMC)
-        #    print("resmom after flatten",len(upResMom),len(dnResMom),len(upResMomMC),len(dnResMomMC))
-
             upMidMomMC = ak.ravel(upMidMomMC)
             dnMidMomMC = ak.ravel(dnMidMomMC)
-         #   print(upMidMom[0:10],upMidMomMC[0:10])
-
             deltaMidMomMC = dnResMomMC-upResMomMC
             DeltaMidMomMC.extend(deltaMidMomMC)
-        print("From ", NReflect," total reflections", NRecoReflect," good quality reco with ", NsigPartReflect, " confirmed eminus and ", len(DeltaMidMom), "signal-like reflections for resolution")
+        print()
+        print("From", NReflect,"total reflections found", NRecoReflect,"with good quality reco,", NsigPartReflect, "confirmed",self.SigPDGName,"and",len(DeltaMidMom), "in momentum range",self.MomRange)
         # compute Delta-T PID performance metrics
         goodDT = np.abs(np.array(DeltaEntTime)) < self.MaxDeltaT
         Ngood = sum( goodDT )
@@ -201,15 +187,15 @@ class RefResp(object):
         NEl = len(DeltaEntTimeSigMC)
         eff = NgoodEl/NEl
         pur = NgoodEl/Ngood
-        print("For |Delta T| < ", self.MaxDeltaT , " efficiency = ",eff," purity = ",pur)
+        print("For All |Delta T| < ", self.MaxDeltaT , " efficiency = ",eff," purity = ",pur)
         # plot DeltaT
         fig, (deltat, seldeltat) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
         nDeltaTBins = 100
         trange=(-20,20)
         dt =     deltat.hist(DeltaEntTime,label="All", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
-        dtSigMC = deltat.hist(DeltaEntTimeSigMC,label="True Signal", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
-        dtBkgMC = deltat.hist(DeltaEntTimeBkgMC,label="True Background", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
-        dtDkMC = deltat.hist(DeltaEntTimeDkMC,label="Background Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+        dtSigMC = deltat.hist(DeltaEntTimeSigMC,label="True "+self.SigPDGName, bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+        dtBkgMC = deltat.hist(DeltaEntTimeBkgMC,label="True "+self.BkgPDGName, bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+        dtDkMC = deltat.hist(DeltaEntTimeDkMC,label="Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
         deltat.set_title("$\\Delta$ Fit Time at Tracker Entrance")
         deltat.set_xlabel("Downstream - Upstream Time (nSec)")
         deltat.legend()
@@ -217,8 +203,8 @@ class RefResp(object):
         fig.text(0.1, 0.4, f"signal purity = {pur:.3f}")
         fig.text(0.1, 0.3,  f"signal efficiency = {eff:.3f}")
         seldt =     seldeltat.hist(SelectedDeltaEntTime,label="All", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
-        seldtSigMC = seldeltat.hist(SelectedDeltaEntTimeSigMC,label="True"+self.SigPDGName, bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
-        seldtBkgMC = seldeltat.hist(SelectedDeltaEntTimeBkgMC,label="True"+self.BkgPDGName, bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+        seldtSigMC = seldeltat.hist(SelectedDeltaEntTimeSigMC,label="True "+self.SigPDGName, bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
+        seldtBkgMC = seldeltat.hist(SelectedDeltaEntTimeBkgMC,label="True "+self.BkgPDGName, bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
         seldtDkMC = seldeltat.hist(SelectedDeltaEntTimeDkMC,label="Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
         seldeltat.set_title("Signal-like $\\Delta$ Fit Time at Tracker Entrance")
         seldeltat.set_xlabel("Downstream - Upstream Time (nSec)")
@@ -229,14 +215,14 @@ class RefResp(object):
         momresorange=(-2.5,2.5)
         deltamomrange=(-10,5)
         fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(10,5))
-        dnMom.hist(DnMidMom,label="All Downstream"+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
-        dnMom.hist(DnSignalMidMom,label="Selected Downstream"+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
+        dnMom.hist(DnMidMom,label="All Downstream "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
+        dnMom.hist(DnSignalMidMom,label="Selected Downstream "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
         dnMom.set_title("Downstream Momentum at Tracker Mid")
         dnMom.set_xlabel("Fit Momentum (MeV)")
         dnMom.legend()
         #
-        upMom.hist(UpMidMom,label="All Upstream"+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
-        upMom.hist(UpSignalMidMom,label="Selected Upstream"+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
+        upMom.hist(UpMidMom,label="All Upstream "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
+        upMom.hist(UpSignalMidMom,label="Selected Upstream "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
         upMom.set_title("Upstream Momentum at Tracker Mid")
         upMom.set_xlabel("Fit Momentum (MeV)")
         upMom.legend()
@@ -270,7 +256,7 @@ class RefResp(object):
         Trk.stairs(edges=DeltaMomHist[1],values=DeltaMomHist[0],label="Track $\\Delta$ P")
         Trk.plot(DeltaMomHistBinMid, fxn_expGauss(DeltaMomHistBinMid, *popt), 'r-',label="EMG Fit")
         Trk.legend()
-        Trk.set_title('EMG fit to Track $\\Delta$ P')
+        Trk.set_title('EMG Fit to Track '+self.SigPDGName+' $\\Delta$ P')
         Trk.set_xlabel("Downstream - Upstream Momentum (MeV)")
         fig.text(0.1, 0.5, f"$\\mu$ = {popt[1]:.3f}")
         fig.text(0.1, 0.4, f"$\\sigma$ = {popt[2]:.3f}")
@@ -285,7 +271,7 @@ class RefResp(object):
         MC.stairs(edges=DeltaMomHistMC[1],values=DeltaMomHistMC[0],label="MC $\\Delta$ P")
         MC.plot(DeltaMomHistBinMid, fxn_expGauss(DeltaMomHistBinMid, *popt), 'r-',label="EMG Fit")
         MC.legend()
-        MC.set_title('EMG fit to MC $\\Delta$ P')
+        MC.set_title('EMG Fit to MC '+self.SigPDGName+' $\\Delta$ P')
         MC.set_xlabel("Downstream - Upstream Momentum (MeV)")
         fig.text(0.6, 0.5, f"$\\mu$ = {popt[1]:.3f}")
         fig.text(0.6, 0.4, f"$\\sigma$ = {popt[2]:.3f}")
