@@ -1,0 +1,38 @@
+def IPA():
+    return 90
+def IPA_Front():
+    return 91
+def IPA_Back():
+    return 92
+def OPA():
+    return 95
+def TSDA():
+    return 96
+def ST_Front():
+    return 100
+def ST_Back():
+    return 101
+def ST_Inner():
+    return 102
+def ST_Outer():
+    return 103
+def ST_Foils():
+    return 104
+def TT_Front():
+    return 0
+def TT_Mid():
+    return 1
+def TT_Back():
+    return 2
+def TT_Inner():
+    return 3
+def TT_Outer():
+    return 4
+def DS_Front():
+    return 80
+def DS_Back():
+    return 81
+def DS_Inner():
+    return 82
+def DS_Outer():
+    return 83

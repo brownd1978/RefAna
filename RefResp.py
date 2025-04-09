@@ -10,6 +10,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 import math
 from scipy import special
+import SurfaceIDs as SID
 
 
 def fxn_expGauss(x, amp, mu, sigma, lamb):
@@ -32,8 +33,8 @@ class RefResp(object):
         self.MaxDeltaT = 5.0 # nsec
         self.MomRange = momrange
         # Surface Ids
-        self.TrkEntSID = 0
-        self.TrkMidSID = 1
+        self.TrkEntSID = SID.TT_Front()
+        self.TrkMidSID = SID.TT_Mid()
 
     def Print(self):
         print("ReflectionResponse object, nhits =",self.MinNHits)
@@ -54,6 +55,11 @@ class RefResp(object):
         DnSignalMidMom = []
         DeltaMidMom = []
         DeltaMidMomMC = []
+        NIPACyl = []
+        SelectedNIPACyl = []
+        NSTOtCyl = []
+        NSTFoil = []
+        SelectedNSTFoil = []
        # counts
         NReflect = 0
         NRecoReflect = 0
@@ -87,53 +93,62 @@ class RefResp(object):
             dnFitCon = fitcon[:,1]
             upNhits = nhits[:,0]
             dnNhits = nhits[:,1]
-    # select fits that match 'signal' PDG
+            # select fits that match 'signal' PDG
             upSigPart = (upFitPDG == self.SigPDG)
             dnSigPart = (dnFitPDG == self.SigPDG)
             sigPartFit = upSigPart & dnSigPart
-        # select based on fit quality
+            # select based on fit quality
             upGoodFit = (upNhits >= self.MinNHits) & (upFitCon > self.MinFitCon)
             dnGoodFit = (dnNhits >= self.MinNHits) & (dnFitCon > self.MinFitCon)
             goodFit = upGoodFit & dnGoodFit
             goodReco = sigPartFit & goodFit
             NReflect = NReflect + len(goodReco)
             NRecoReflect = NRecoReflect + sum(goodReco)
-        # select based on time difference at tracker entrance
+            # select based on time difference at tracker entrance
             upEntTime = upSegs[(upSegs.sid==self.TrkEntSID) & (upSegs.mom.z() > 0.0) ].time
             dnEntTime = dnSegs[(dnSegs.sid==self.TrkEntSID) & (dnSegs.mom.z() > 0.0) ].time
             deltaEntTime = dnEntTime-upEntTime
             goodDeltaT = abs(deltaEntTime) < self.MaxDeltaT
             DeltaEntTime.extend(ak.flatten(deltaEntTime[goodReco]))
-# good electron
+            # good electron
             goodsigPart = goodReco & goodDeltaT
             goodsigPart = ak.ravel(goodsigPart)
             NsigPartReflect = NsigPartReflect + sum(goodsigPart)
-        # total momentum at tracker mid, upstream and downstream fits
+            # total momentum at tracker mid, upstream and downstream fits
             upMidMom = upSegs[(upSegs.sid == self.TrkMidSID)].mom.magnitude()
             dnMidMom = dnSegs[(dnSegs.sid == self.TrkMidSID)].mom.magnitude()
             DnMidMom.extend(ak.flatten(dnMidMom,axis=1))
             UpMidMom.extend(ak.flatten(upMidMom,axis=1))
-        # select fits that look like signal electrons: this needs to include a target constraint TODO
-        #    testsame = ak.num(upMidMom,axis=1) == ak.num(dnMidMom,axis=1)
-        # protect against missing intersections
+            # count IPA and target intersections
+            NIPACyl.extend(ak.count_nonzero(upSegs.sid==SID.IPA(),axis=1))
+            NSTOtCyl.extend(ak.count_nonzero(upSegs.sid==SID.ST_Outer(),axis=1))
+            NSTFoil.extend(ak.count_nonzero(upSegs.sid==SID.ST_Foils(),axis=1))
+            nfoil = ak.count_nonzero(upSegs.sid==SID.ST_Foils(),axis=1)
+            nipa = ak.count_nonzero(upSegs.sid==SID.IPA(),axis=1)
+            # select fits that look like signal electrons: this needs to include a target constraint TODO
+            # protect against missing intersections
             signalMomRange = [False]*len(upMidMom)
             for i in range(0,len(upMidMom)):
                 if (len(upMidMom[i]) ==1) & (len(dnMidMom[i]) == 1):
-                    signalMomRange[i] = (dnMidMom[i][0] > self.MomRange[0]) & (dnMidMom[i][0] < self.MomRange[1]) & (upMidMom[i][0] > self.MomRange[0]) & (upMidMom[i][0] < self.MomRange[1])
+                    signalMomRange[i] = (dnMidMom[i][0] > self.MomRange[0]) & (dnMidMom[i][0] < self.MomRange[1]) & (upMidMom[i][0] > self.MomRange[0]) & (upMidMom[i][0] < self.MomRange[1]) & (nfoil[i]>0)
             goodSignalsigPart = signalMomRange & goodsigPart
+            for i in range(0,len(goodSignalsigPart)):
+                if(goodSignalsigPart[i]):
+                    SelectedNIPACyl.append(nipa[i])
+                    SelectedNSTFoil.append(nfoil[i])
             SelectedDeltaEntTime.extend(ak.flatten(deltaEntTime[goodReco & signalMomRange]))
             upSignalMidMom = upMidMom[goodSignalsigPart]
             dnSignalMidMom = dnMidMom[goodSignalsigPart]
             UpSignalMidMom.extend(ak.flatten(upSignalMidMom,axis=1))
             DnSignalMidMom.extend(ak.flatten(dnSignalMidMom,axis=1))
-        # reflection momentum difference of signal-like electrons
+            # reflection momentum difference of signal-like electrons
             deltaMidMom = dnSignalMidMom - upSignalMidMom
             DeltaMidMom.extend(ak.flatten(deltaMidMom,axis=1))
-        # Process MC truth
-        # first select the most closesly-related MC particle
+            # Process MC truth
+            # first select the most closesly-related MC particle
             upTrkMC = upTrkMC[(upTrkMC.trkrel._rel == 0)]
             dnTrkMC = dnTrkMC[(dnTrkMC.trkrel._rel == 0)]
-        # selections based on particle species
+            # selections based on particle species
             upSigMC = (upTrkMC.pdg == self.SigPDG)
             dnSigMC = (dnTrkMC.pdg == self.SigPDG)
             upBkgMC = (upTrkMC.pdg == self.BkgPDG)
@@ -141,7 +156,7 @@ class RefResp(object):
             sigMC = upSigMC & dnSigMC
             bkgMC = upBkgMC & dnBkgMC
             dkMC = upBkgMC & dnSigMC # decays in flight
-        # select MC truth of entrance times
+            # select MC truth of entrance times
             DeltaEntTimeSigMC.extend(ak.flatten(deltaEntTime[goodReco & sigMC]))
             DeltaEntTimeBkgMC.extend(ak.flatten(deltaEntTime[goodReco & bkgMC]))
             DeltaEntTimeDkMC.extend(ak.flatten(deltaEntTime[goodReco & dkMC]))
@@ -155,10 +170,9 @@ class RefResp(object):
 
             upMidMomMC = upMidSegsMC.mom.magnitude()
             dnMidMomMC = dnMidSegsMC.mom.magnitude()
-        # select correct direction
+            # select correct direction
             upMidMomMC = upMidMomMC[upMidSegsMC.mom.z()<0]
             dnMidMomMC = dnMidMomMC[dnMidSegsMC.mom.z()>0]
-        #
             hasUpMidMomMC = ak.count_nonzero(upMidMomMC,axis=1,keepdims=True)==1
             hasDnMidMomMC = ak.count_nonzero(dnMidMomMC,axis=1,keepdims=True)==1
             hasUpMidMomMC = ak.flatten(hasUpMidMomMC)
@@ -198,7 +212,7 @@ class RefResp(object):
         dtDkMC = deltat.hist(DeltaEntTimeDkMC,label="Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
         deltat.set_title("$\\Delta$ Fit Time at Tracker Entrance")
         deltat.set_xlabel("Downstream - Upstream Time (nSec)")
-        deltat.legend()
+        deltat.legend(loc="upper right")
         fig.text(0.1, 0.5, f"|$\\Delta$ T| < {self.MaxDeltaT:.2f}")
         fig.text(0.1, 0.4, f"signal purity = {pur:.3f}")
         fig.text(0.1, 0.3,  f"signal efficiency = {eff:.3f}")
@@ -208,30 +222,47 @@ class RefResp(object):
         seldtDkMC = seldeltat.hist(SelectedDeltaEntTimeDkMC,label="Decays", bins=nDeltaTBins, range=trange, histtype='bar', stacked=True)
         seldeltat.set_title("Signal-like $\\Delta$ Fit Time at Tracker Entrance")
         seldeltat.set_xlabel("Downstream - Upstream Time (nSec)")
-        seldeltat.legend()
+        seldeltat.legend(loc="upper right")
+        #
+        fig, (cmat,cselmat,cst) = plt.subplots(1,3,layout='constrained', figsize=(10,5))
+        nipa = cmat.hist(NIPACyl,label="All IPA", bins=20, range=[-0.5,19.5], histtype='step', stacked=True)
+        nst = cmat.hist(NSTFoil,label="All ST", bins=20, range=[-0.5,19.5], histtype='step', stacked=True)
+        cmat.set_title("Material Intersections")
+        cmat.set_xlabel("N Intersections")
+        cmat.legend(loc="upper right")
+        nsipa = cselmat.hist(SelectedNIPACyl,label="Selected IPA", bins=20, range=[-0.5,19.5], histtype='step', stacked=True)
+        nsst = cselmat.hist(SelectedNSTFoil,label="Selected ST", bins=20, range=[-0.5,19.5], histtype='step', stacked=True)
+        cselmat.set_title("Material Intersections")
+        cselmat.set_xlabel("N Intersections")
+        cselmat.legend(loc="upper right")
+        nst = cst.hist2d(NSTOtCyl,NSTFoil,label="ST",bins=[10,10],range=[[-0.5,9.5],[-0.5,9.5]],density=True,norm="log")
+        cst.set_title("ST Intersections")
+        cst.set_xlabel("N Cyl Intersections")
+        cst.set_ylabel("N Foil Intersections")
+        #
         nDeltaMomBins = 200
         nMomBins = 100
         momrange=(40.0,200.0)
         momresorange=(-2.5,2.5)
         deltamomrange=(-10,5)
         fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(10,5))
-        dnMom.hist(DnMidMom,label="All Downstream "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
-        dnMom.hist(DnSignalMidMom,label="Selected Downstream "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
+        dnMom.hist(DnMidMom,label="All "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
+        dnMom.hist(DnSignalMidMom,label="Selected "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
         dnMom.set_title("Downstream Momentum at Tracker Mid")
         dnMom.set_xlabel("Fit Momentum (MeV)")
-        dnMom.legend()
+        dnMom.legend(loc="upper right")
         #
-        upMom.hist(UpMidMom,label="All Upstream "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
-        upMom.hist(UpSignalMidMom,label="Selected Upstream "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
+        upMom.hist(UpMidMom,label="All "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
+        upMom.hist(UpSignalMidMom,label="Selected "+self.SigPDGName, bins=nMomBins, range=momrange, histtype='step')
         upMom.set_title("Upstream Momentum at Tracker Mid")
         upMom.set_xlabel("Fit Momentum (MeV)")
-        upMom.legend()
+        upMom.legend(loc="upper right")
         #
         DeltaMomHist = deltaMom.hist(DeltaMidMom,label="Fit $\\Delta$ P", bins=nDeltaMomBins, range=deltamomrange, histtype='step')
         DeltaMomHistMC = deltaMom.hist(DeltaMidMomMC,label="MC $\\Delta$ P", bins=nDeltaMomBins, range=deltamomrange, histtype='step')
         deltaMom.set_xlabel("Downstream - Upstream Momentum (MeV)")
         deltaMom.set_title("$\\Delta$ Momentum at Tracker Middle")
-        deltaMom.legend()
+        deltaMom.legend(loc="upper right")
         # fit
         DeltaMomHistErrors = np.zeros(len(DeltaMomHist[1])-1)
         DeltaMomHistBinMid =np.zeros(len(DeltaMomHist[1])-1)
@@ -255,7 +286,7 @@ class RefResp(object):
         fig, (Trk,MC) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
         Trk.stairs(edges=DeltaMomHist[1],values=DeltaMomHist[0],label="Track $\\Delta$ P")
         Trk.plot(DeltaMomHistBinMid, fxn_expGauss(DeltaMomHistBinMid, *popt), 'r-',label="EMG Fit")
-        Trk.legend()
+        Trk.legend(loc="upper right")
         Trk.set_title('EMG Fit to Track '+self.SigPDGName+' $\\Delta$ P')
         Trk.set_xlabel("Downstream - Upstream Momentum (MeV)")
         fig.text(0.1, 0.5, f"$\\mu$ = {popt[1]:.3f}")
@@ -270,7 +301,7 @@ class RefResp(object):
         print("MC Fit covariance",pcov)
         MC.stairs(edges=DeltaMomHistMC[1],values=DeltaMomHistMC[0],label="MC $\\Delta$ P")
         MC.plot(DeltaMomHistBinMid, fxn_expGauss(DeltaMomHistBinMid, *popt), 'r-',label="EMG Fit")
-        MC.legend()
+        MC.legend(loc="upper right")
         MC.set_title('EMG Fit to MC '+self.SigPDGName+' $\\Delta$ P')
         MC.set_xlabel("Downstream - Upstream Momentum (MeV)")
         fig.text(0.6, 0.5, f"$\\mu$ = {popt[1]:.3f}")
