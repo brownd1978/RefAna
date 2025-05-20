@@ -9,6 +9,7 @@ import uproot
 import numpy as np
 from scipy.optimize import curve_fit
 import math
+import h5py
 from scipy import special
 import SurfaceIds as SID
 
