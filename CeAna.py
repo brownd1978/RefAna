@@ -38,13 +38,18 @@ class CeAna(object):
         MCMom = []
         MomReso = []
         MomResp = []
-        originMomMC = []
+        OMomMC = []
+        ORhoMC = []
+        OZMC = []
+        TgtRhoMC = []
+        TgtRho = []
+        TgtZMC = []
+        TgtZ = []
         elPDG = 11
         for isid in range(len(self.SIDs)+1) : # add 1 for target
             Mom.append([])
             MomReso.append([])
             MomResp.append([])
-            originMomMC.append([])
         ibatch=0
         itarget = len(Mom)-1;
 #        Mom[itarget] = np.array()
@@ -54,6 +59,7 @@ class CeAna(object):
         rfile = uproot.open(files[0]+":EventNtuple")
         print(rfile.keys())
 
+        np.set_printoptions(precision=2,floatmode='fixed')
         for batch,rep in uproot.iterate(files,filter_name="/evtinfo|trk|trksegs|trkmcsim|trksegsmc/i",report=True):
             print(batch,type(batch))
             print("Processing batch ",ibatch)
@@ -66,39 +72,39 @@ class CeAna(object):
             fitcon = batch['trk.fitcon']  # track fit consistency
             trkMC = batch['trkmcsim']  # MC genealogy of particles
             segsMC = batch['trksegsmc'] # SurfaceStep infor for true primary particle
-            Segs = segs[:,0] # assume the 1st track is the Ce
-            SegsMC = segsMC[:,0]
-            TrkMC = trkMC[:,0]
+            # should be 1 track/event
+            assert(ak.sum(ak.count_nonzero(nhits,axis=1)!=1) == 0)
+            Segs = segs[:,0]
             FitCon = fitcon[:,0]
             Nhits = nhits[:,0]
             goodFit = (Nhits >= self.minNHits) & (FitCon > self.minFitCon)
-            goodTrkMC = (TrkMC.pdg == elPDG) & (TrkMC.trkrel._rel == 0)
-            TSDASeg = Segs[Segs.sid == 96 ] #TSDA()] FIXME
+            TSDASeg = Segs[Segs.sid == SID.TSDA() ]
             noTSDA = ak.num(TSDASeg)==0
-        #    print(noTSDA)
-            originMomMC = TrkMC[goodTrkMC].mom.magnitude()
+            # now MC
+            SegsMC = segsMC[:,0] # segments (of 1st MC match) of 1st track
+            TrkMC = trkMC[:,0,0] # primary MC match of 1st track
             # basic consistency test
-            assert((len(runnum) == len( Segs)) & (len(Segs) == len(SegsMC)) & (len(Segs) == len(TrkMC)) & (len(Nhits) == len(Segs)) & (len(originMomMC) == len(Segs)))
-            originMomMC = originMomMC[(originMomMC>self.MomRange[0]) & (originMomMC < self.MomRange[1])]
-            omomMC = ak.flatten(originMomMC,axis=1)
-            MCMom.extend(omomMC)
-            hasOriginMomMC = ak.count_nonzero(originMomMC,axis=1,keepdims=True)==1
-            hasOriginMomMC = ak.flatten(hasOriginMomMC,axis=1)
-        #    print(hasOriginMomMC[0:10])
-        #    print(originMomMC[0:10])
+            assert((len(runnum) == len( Segs)) & (len(Segs) == len(SegsMC)) & (len(Segs) == len(TrkMC)) & (len(Nhits) == len(Segs)))
+            goodMC = (TrkMC.pdg == elPDG) & (TrkMC.trkrel._rel == 0)
+            OMomMC = TrkMC[goodMC].mom.magnitude()
+            goodMC = goodMC & (OMomMC>self.MomRange[0]) & (OMomMC < self.MomRange[1])
+            OMomMC = OMomMC[goodMC]
+            ORhoMC = TrkMC[goodMC].pos.rho()
+            OZMC = TrkMC[goodMC].pos.z()
+            SegsMC = SegsMC[goodMC]
+            Segs = Segs[goodMC]
+            MCMom.extend(OMomMC)
             # sample the fits at the specified
             for isid in range(len(self.SIDs)) :
                 sid = self.SIDs[isid]
                 segs = Segs[(Segs.sid == sid) & (Segs.mom.z() > 0.0) ]
                 mom = segs.mom.magnitude()
                 mom = mom[(mom > self.MomRange[0]) & (mom < self.MomRange[1])]
-                hasmom= ak.count_nonzero(mom,axis=1,keepdims=True)==1
-                hasmom =ak.flatten(hasmom,axis=1)
+                hasmom= ak.count_nonzero(mom,axis=1)==1
                 segsMC = SegsMC[(SegsMC.sid == sid) & (SegsMC.mom.z() > 0.0) ]
                 momMC = segsMC.mom.magnitude()
-                hasMC = ak.count_nonzero(momMC,axis=1,keepdims=True)==1
-                hasMC = ak.flatten(hasMC,axis=1)
-                select = goodFit & hasmom & hasMC & hasOriginMomMC & noTSDA
+                hasMC = ak.count_nonzero(momMC,axis=1)==1
+                select = hasMC & goodFit & hasmom & noTSDA
                 mom = mom[select]
                 momMC = momMC[select]
                 mom = ak.flatten(mom,axis=1)
@@ -107,32 +113,29 @@ class CeAna(object):
                 Mom[isid].extend(mom)
                 momreso = mom - momMC
                 MomReso[isid].extend(momreso)
-                omomMC = originMomMC[select]
-                omomMC = ak.flatten(omomMC,axis=1)
-                momresp = mom - omomMC
+                selMomMC = OMomMC[select]
+                momresp = mom - selMomMC
                 MomResp[isid].extend(momresp)
-            # look for the furthest upstream target intersection
-            for outer in Segs:
-#                print("New track")
-                minfoil = 1000
-                # find furthest upstream foil
-                for inner in outer:
-#                    print("SID",inner.sid)
-                    if(inner.sid == SID.ST_Foils()):
-#                        print("Foil intersection, index",inner.sindex)
-                        if(inner.sindex < minfoil):
-                            minfoil = inner.sindex
-#                print("Setting minfoil",minfoil)
-                for inner in outer:
-#                    print("SID",inner.sid)
-                    if((inner.sid == SID.ST_Foils()) & (inner.sindex == minfoil)):
-                        mom = inner.mom.magnitude()
-#                        print("Filling target mom",mom,"foil",minfoil)
-#                        Mom[itarget].extend(mom)
-                        Mom[itarget].append(mom)
-                        MomResp[itarget].append(mom-105) # hack FIXME
+            #foil response
+            tgtsegs = Segs[(Segs.sid == SID.ST_Foils())]
+            tgtmom = tgtsegs.mom.magnitude()
+            ntgts = ak.count(tgtmom,axis=1)
+            goodtgt = (ntgts > 0)
+            ntgts = ntgts[goodtgt]
+            avgmom = ak.sum(tgtmom,axis=1)
+            avgmom = avgmom[goodtgt]
+            avgmom = avgmom/ntgts
+            Mom[itarget].extend(avgmom)
+            omomtgt = OMomMC[goodtgt]
+            MomResp[itarget].extend((avgmom-omomtgt))
+            TgtRho.extend(ak.flatten(tgtsegs.pos.rho()))
+            TgtZ.extend(ak.flatten(tgtsegs.pos.z()))
 
-            # count missing intersections
+            tgtsegsmc = SegsMC[(SegsMC.sid == SID.ST_Foils())]
+            TgtRhoMC.extend(ak.flatten(tgtsegsmc.pos.rho()))
+            TgtZMC.extend(ak.flatten(tgtsegsmc.pos.z()))
+
+            # test for missing intersections
             hasent = (Segs.sid == 0) & (Segs.mom.z() > 0.0)
             hasmid = (Segs.sid == 1) & (Segs.mom.z() > 0.0)
             hasxit = (Segs.sid == 2) & (Segs.mom.z() > 0.0)
@@ -140,11 +143,30 @@ class CeAna(object):
             hasmid = ak.any(hasmid,axis=1)
             hasxit = ak.any(hasxit,axis=1)
             hasall = hasent & hasmid & hasxit
-            print("Found",ak.count(hasall,0) - ak.count_nonzero(hasall),"Instances of missing intersections in",ak.count(hasall,0),"tracks")
-            for itrk in range(len(hasall)):
-                if (not hasall[itrk]):
-                    print("Missing intersection: ",hasent[itrk],hasmid[itrk],hasxit[itrk]," eid ",runnum[itrk],":",subrun[itrk],":",event[itrk],sep="")
-            # plot Momentum
+            missing = ak.count(hasall,0) - ak.count_nonzero(hasall)
+            if(missing > 0):
+                print("Found",missing,"Instances of missing intersections in",ak.count(hasall,0),"tracks")
+                for itrk in range(len(hasall)):
+                    if (not hasall[itrk]):
+                        print("Missing intersection: ",hasent[itrk],hasmid[itrk],hasxit[itrk]," eid ",runnum[itrk],":",subrun[itrk],":",event[itrk],sep="")
+
+        # plot positions
+#        print(TgtRho)
+#        tz = TgtPos.z()
+        fig, (tgtrho,tgtz) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
+        tgtrho.hist(TgtRho,label="Fit", bins=100, range=[25,120], histtype='step')
+        tgtrho.hist(TgtRhoMC,label="MC", bins=100, range=[25,120], histtype='step')
+        tgtrho.hist(ORhoMC,label="Origin", bins=100, range=[25,120], histtype='step')
+        tgtrho.set_xlabel("Rho (mm)")
+        tgtrho.set_title("Target Rho")
+        tgtz.hist(TgtZ,label="Fit", bins=100, range=[-4750,-3750], histtype='step')
+        tgtz.hist(TgtZMC,label="MC", bins=100, range=[-4750,-3750], histtype='step')
+        tgtz.hist(OZMC,label="Origin", bins=100, range=[-4750,-3750], histtype='step')
+        tgtz.set_xlabel("Z (mm)")
+        tgtz.set_title("Target Z")
+
+
+        # plot Momentum
         nDeltaMomBins = 200
         nMomBins = 100
         momrange=(self.MomRange[0],107)
@@ -157,7 +179,7 @@ class CeAna(object):
         momResp = [None]*3
         momRespFit = [None]*3
         MomRespHist = [None]*3
- #       print("Mom[itarget]",Mom[itarget])
+#        print("Mom[itarget]",Mom[itarget])
 
         fig, (tgtMom, momVal[0], momVal[1], momVal[2]) = plt.subplots(1,4,layout='constrained', figsize=(10,5))
         tgtMom.hist(Mom[itarget],label="ST", bins=nMomBins, range=momrange, histtype='step')
