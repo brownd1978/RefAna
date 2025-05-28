@@ -11,7 +11,7 @@ from scipy.optimize import curve_fit
 import math
 from scipy import special
 import SurfaceIds as SID
-
+import MyHist
 
 def fxn_expGauss(x, amp, mu, sigma, lamb):
     z = (mu + lamb*(sigma**2) + x)/(np.sqrt(2)*sigma)
@@ -19,30 +19,10 @@ def fxn_expGauss(x, amp, mu, sigma, lamb):
     val = amp*(lamb/2)*((math.e)**((lamb/2)*(2*mu+lamb*(sigma**2)+2*x)))*comp_err_func
     return val
 
-class MyHist(object):
-    def __init__(self,bins,range,label,title="",xlabel=""):
-        data = []
-        self.data, self.edges = np.histogram(data, bins=bins, range=range)
-        self.label = label
-        self.title = title
-        self.xlabel = xlabel
-    def fill(self,data):
-        newdata , newedges = np.histogram(data, bins=self.edges)
-        self.data += newdata
-    def plot(self,axis):
-        plt = axis.stairs(self.data,self.edges,label=self.label)
-        if(self.title != ""):
-            axis.set_title(self.title)
-        if(self.xlabel != ""):
-            axis.set_xlabel(self.xlabel)
-        return plt
-    def integral(self):
-        return np.sum(self.data)
-
 class ConvFit(object):
-    def __init__(self,momrange,sigpdg,trksid):
+    def __init__(self,momrange,pdg,sid):
         # PDG cods of signal and background particles
-        self.PDG = sigpdg
+        self.PDG = pdg
         PDGNames = {-13:"$\\mu^+$",-11:"$e^+$",11:"$e^-$",13:"$\\mu^-$"}
         self.PDGName = PDGNames[self.PDG]
         # setup cuts; these should be overrideable FIXME
@@ -51,32 +31,34 @@ class ConvFit(object):
         self.MaxDeltaT = 5.0 # nsec
         self.MomRange = momrange
         # Surface Ids
-        self.TrkEntSID = SID.TT_Front()
-        self.TrkCompSID = trksid
+        self.SID = sid
+        self.CompName = SID.SurfaceName(sid)
+        # intersection histograms
         nNMatBins = 20
         NMatRange = [-0.5,19.5]
-        self.HNST = MyHist(bins=nNMatBins,range=NMatRange,label="All ST",xlabel="N Intersections",title="Material Intersections")
-        self.HNIPA = MyHist(bins=nNMatBins,range=NMatRange,label="All IPA",xlabel="N Intersections")
-        self.HNSTSel = MyHist(bins=nNMatBins,range=NMatRange,label="Selected ST",xlabel="N Intersections",title="Selected Material Intersections")
-        self.HNIPASel = MyHist(bins=nNMatBins,range=NMatRange,label="Selected IPA",xlabel="N Intersections")
-
+        self.HNST = MyHist.MyHist(bins=nNMatBins,range=NMatRange,label="All ST",xlabel="N Intersections",title="Material Intersections")
+        self.HNIPA = MyHist.MyHist(bins=nNMatBins,range=NMatRange,label="All IPA",xlabel="N Intersections")
+        self.HNSTSel = MyHist.MyHist(bins=nNMatBins,range=NMatRange,label="Selected ST",xlabel="N Intersections",title="Selected Material Intersections")
+        self.HNIPASel = MyHist.MyHist(bins=nNMatBins,range=NMatRange,label="Selected IPA",xlabel="N Intersections")
+        # Momentum histograms
         nMomBins = 100
         momrange=(40.0,200.0)
         nDeltaMomBins = 200
         deltamomrange=(-10,5)
+        self.HDnMom = MyHist.MyHist(label="All "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)", title="Downstream Momentum at "+self.CompName)
+        self.HDnSelMom = MyHist.MyHist(label="Selected "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)")
+        self.HUpMom = MyHist.MyHist(label="All "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)",title="Upstream Momentum at "+self.CompName)
+        self.HUpSelMom = MyHist.MyHist(label="Selected "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)")
+        # Momentum comparison histograms
+        self.HDeltaMom = MyHist.MyHist(label="All "+self.PDGName, bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title ="$\\Delta$ Momentum at "+self.CompName)
 
-        self.HDnCompMom = MyHist(label="All "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)", title="Downstream Momentum at Tracker Mid")
-        self.HDnSignalCompMom = MyHist(label="Selected "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)")
-        self.HUpCompMom = MyHist(label="All "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)",title="Upstream Momentum at Tracker Mid")
-        self.HUpSignalCompMom = MyHist(label="Selected "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)")
-        self.HDeltaCompMom = MyHist(label="Fit $\\Delta$ P", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title ="$\\Delta$ Momentum")
-
+        self.HDeltaSelMom = MyHist.MyHist(label="Selected "+self.PDGName, bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)")
 
     def Print(self):
-        print("Convolution Fit, nhits =",self.MinNHits,"Mom Range",self.MomRange,"Comparison SID=",self.TrkCompSID,"PDG",self.PDGName)
+        print("Convolution Fit, nhits =",self.MinNHits,"Mom Range",self.MomRange,"Comparison at",self.CompName,"PDG",self.PDGName)
 
     def Loop(self,files,treename):
-       # global counts
+        # global counts
         NReflect = 0
         NRecoReflect = 0
         NsigPartReflect = 0
@@ -104,7 +86,7 @@ class ConvFit(object):
             dnFitCon = fitcon[:,1]
             upNhits = nhits[:,0]
             dnNhits = nhits[:,1]
-            # select fits that match 'signal' PDG
+            # select fits that match PDG code
             upSigPart = (upFitPDG == self.PDG)
             dnSigPart = (dnFitPDG == self.PDG)
             sigPartFit = upSigPart & dnSigPart
@@ -116,42 +98,50 @@ class ConvFit(object):
             NReflect = NReflect + len(goodReco)
             NRecoReflect = NRecoReflect + sum(goodReco)
             # select based on time difference at tracker entrance
-            upEntTime = upSegs[(upSegs.sid==self.TrkEntSID) & (upSegs.mom.z() > 0.0) ].time
-            dnEntTime = dnSegs[(dnSegs.sid==self.TrkEntSID) & (dnSegs.mom.z() > 0.0) ].time
+            upEntTime = upSegs[(upSegs.sid==SID.TT_Front()) & (upSegs.mom.z() > 0.0) ].time
+            dnEntTime = dnSegs[(dnSegs.sid==SID.TT_Front()) & (dnSegs.mom.z() > 0.0) ].time
             deltaEntTime = dnEntTime-upEntTime
             goodDeltaT = abs(deltaEntTime) < self.MaxDeltaT
-            # good PID
-            goodsigPart = goodReco & goodDeltaT
-            goodsigPart = ak.ravel(goodsigPart)
-            NsigPartReflect = NsigPartReflect + sum(goodsigPart)
+            # good fits
+            goodFit = goodReco & goodDeltaT
+            goodFit = ak.ravel(goodFit)
+            NsigPartReflect = NsigPartReflect + sum(goodFit)
             # total momentum of upstream and downstream fits at the comparison point
-            upCompMom = np.array(ak.flatten(upSegs[(upSegs.sid == self.TrkCompSID) & (upSegs.mom.Z() < 0.0)].mom.magnitude(),axis=1))
-            dnCompMom = np.array(ak.flatten(dnSegs[(dnSegs.sid == self.TrkCompSID) & (dnSegs.mom.Z() > 0.0)].mom.magnitude(),axis=1))
-            self.HUpCompMom.fill(upCompMom)
-            self.HDnCompMom.fill(dnCompMom)
+            upMom = np.array(ak.flatten(upSegs[(upSegs.sid == self.SID) & (upSegs.mom.Z() < 0.0)].mom.magnitude(),axis=1))
+            dnMom = np.array(ak.flatten(dnSegs[(dnSegs.sid == self.SID) & (dnSegs.mom.Z() > 0.0)].mom.magnitude(),axis=1))
+            self.HUpMom.fill(upMom[goodFit])
+            self.HDnMom.fill(dnMom[goodFit])
+            if len(upMom) != len(dnMom):
+                print()
+                print("Upstream and Downstream fits don't match!")
+                continue
+
+            deltaMom = dnMom - upMom
+            self.HDeltaMom.fill(deltaMom[goodFit])
             # count IPA and target intersections
             nfoil = np.array(ak.count_nonzero(upSegs.sid==SID.ST_Foils(),axis=1))
             self.HNST.fill(nfoil)
             nipa = np.array(ak.count_nonzero(upSegs.sid==SID.IPA(),axis=1))
             self.HNIPA.fill(nipa)
-            # select fits that look like signal electrons, including target foil intersection
-            signal =  (dnCompMom > self.MomRange[0]) & (dnCompMom < self.MomRange[1]) & (upCompMom > self.MomRange[0]) & (upCompMom < self.MomRange[1]) & (nfoil>0)
-            goodSignalsigPart = signal & goodsigPart
-
-            nfoilsel = nfoil[goodSignalsigPart]
+            # select fits
+            selected = (dnMom > self.MomRange[0]) & (dnMom < self.MomRange[1]) & (upMom > self.MomRange[0]) & (upMom < self.MomRange[1]) & (nfoil>0)
+            goodSel = selected & goodFit
+            nfoilsel = nfoil[goodSel]
             self.HNSTSel.fill(nfoilsel)
-            nipasel = nipa[goodSignalsigPart]
+            nipasel = nipa[goodSel]
             self.HNIPASel.fill(nipasel)
 
-            upSignalCompMom = upCompMom[goodSignalsigPart]
-            dnSignalCompMom = dnCompMom[goodSignalsigPart]
-            self.HUpSignalCompMom.fill(upSignalCompMom)
-            self.HDnSignalCompMom.fill(dnSignalCompMom)
-            # reflection momentum difference of signal-like particles
-            deltaCompMom = dnSignalCompMom - upSignalCompMom
-            self.HDeltaCompMom.fill(deltaCompMom)
+            upSelMom = upMom[goodSel]
+            dnSelMom = dnMom[goodSel]
+            self.HUpSelMom.fill(upSelMom)
+            self.HDnSelMom.fill(dnSelMom)
+            # reflection momentum difference
+            deltaSelMom = dnSelMom - upSelMom
+            self.HDeltaSelMom.fill(deltaSelMom)
         print()
-        print("From", NReflect,"total reflections found", NRecoReflect,"with good quality reco,", NsigPartReflect, "confirmed",self.PDGName,"and",self.HUpSignalCompMom.integral(), "Selected",self.MomRange)
+        print("From", NReflect,"total reflections found", NRecoReflect,"with good quality reco,", NsigPartReflect, "confirmed",self.PDGName,"and",self.HUpSelMom.integral(), "Selected",self.MomRange)
+
+    def PlotIntersections(self):
         fig, (cmat,cselmat) = plt.subplots(1,2,layout='constrained', figsize=(15,5))
         nipa = self.HNIPA.plot(cmat)
         nst = self.HNST.plot(cmat)
@@ -159,43 +149,63 @@ class ConvFit(object):
         nipasel = self.HNIPASel.plot(cselmat)
         nstsel = self.HNSTSel.plot(cselmat)
         cselmat.legend(loc="upper right")
-        #
-        fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(15,5))
-        upmom = self.HUpCompMom.plot(upMom)
-        upmomsig = self.HUpSignalCompMom.plot(upMom)
-        upMom.legend(loc="upper right")
-        dnmom = self.HDnCompMom.plot(dnMom)
-        dnmomsig = self.HDnSignalCompMom.plot(dnMom)
-        dnMom.legend(loc="upper right")
 
-        delmomhist = self.HDeltaCompMom.plot(deltaMom)
+    def PlotMomentum(self):
+        fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(15,5))
+        upmom = self.HUpMom.plot(upMom)
+        upselmom = self.HUpSelMom.plot(upMom)
+        upMom.legend(loc="upper right")
+        dnmom = self.HDnMom.plot(dnMom)
+        dnselmom = self.HDnSelMom.plot(dnMom)
+        dnMom.legend(loc="upper right")
+        delmom = self.HDeltaMom.plot(deltaMom)
+        delselmom = self.HDeltaSelMom.plot(deltaMom)
         deltaMom.legend(loc="upper right")
-        # fit
-        DeltaMomHistErrors = np.zeros(len(delmomhist[1])-1)
-        delmomhistBinMid =np.zeros(len(delmomhist[1])-1)
-        for ibin in range(len(delmomhistErrors)):
-            delmomhistBinMid[ibin] = 0.5*(delmomhist[1][ibin] + delmomhist[1][ibin+1])
-            delmomhistErrors[ibin] = max(1.0,math.sqrt(delmomhist[0][ibin]))
-        #print(delmomhistBinErrors)
-        delmomhistIntegral = np.sum(delmomhist[0])
+
+    def Fit(self):
+        fig, (delmom,delselmom) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
+
+        dmomerr = self.HDeltaMom.binErrors()
+        dmommid = self.HDeltaMom.binCenters()
+        dmomsum = self.HDeltaMom.integral()
         # initialize the fit parameters
-        mu_0 = np.mean(delmomhistBinMid*delmomhist[0]/delmomhistIntegral) # initial mean
-        var = np.sum(((delmomhistBinMid**2)*delmomhist[0])/delmomhistIntegral) - mu_0**2
+        mu_0 = np.mean(dmommid*self.HDeltaMom.data/dmomsum) # initial mean
+        var = np.sum(((dmommid**2)*self.HDeltaMom.data)/dmomsum) - mu_0**2
         sigma_0 = np.sqrt(var) # initial sigma
         lamb_0 = sigma_0 # initial exponential (guess)
-        binsize = delmomhist[1][1]-delmomhist[1][0]
-        amp_0 = delmomhistIntegral*binsize # initial amplitude
+        binsize = self.HDeltaMom.edges[1]- self.HDeltaMom.edges[0]
+        amp_0 = dmomsum*binsize # initial amplitude
         p0 = np.array([amp_0, mu_0, sigma_0, lamb_0]) # initial parameters
         # fit, returing optimum parameters and covariance
-        popt, pcov = curve_fit(fxn_expGauss, delmomhistBinMid, delmomhist[0], p0, sigma=delmomhistErrors)
-        print("Trk fit parameters",popt)
-        print("Trk fit covariance",pcov)
-        fig, (Trk) = plt.subplots(1,1,layout='constrained', figsize=(10,5))
-        Trk.stairs(edges=delmomhist[1],values=delmomhist[0],label="Track $\\Delta$ P")
-        Trk.plot(delmomhistBinMid, fxn_expGauss(delmomhistBinMid, *popt), 'r-',label="EMG Fit")
-        Trk.legend(loc="upper right")
-        Trk.set_title('EMG Fit to Track '+self.PDGName+' $\\Delta$ P')
-        Trk.set_xlabel("Downstream - Upstream Momentum (MeV)")
+        popt, pcov = curve_fit(fxn_expGauss, dmommid, self.HDeltaMom.data, p0, sigma=dmomerr)
+        print("All fit parameters",popt)
+        print("All fit covariance",pcov)
+
+        self.HDeltaMom.plotErrors(delmom)
+        delmom.plot(dmommid, fxn_expGauss(dmommid, *popt), 'r-',label="Fit")
+        delmom.legend(loc="upper right")
         fig.text(0.1, 0.5, f"$\\mu$ = {popt[1]:.3f}")
         fig.text(0.1, 0.4, f"$\\sigma$ = {popt[2]:.3f}")
         fig.text(0.1, 0.3,  f"$\\lambda$ = {popt[3]:.3f}")
+
+        dmomerr = self.HDeltaSelMom.binErrors()
+        dmommid = self.HDeltaSelMom.binCenters()
+        dmomsum = self.HDeltaSelMom.integral()
+        # initialize the fit parameters
+        mu_0 = np.mean(dmommid*self.HDeltaSelMom.data/dmomsum) # initial mean
+        var = np.sum(((dmommid**2)*self.HDeltaSelMom.data)/dmomsum) - mu_0**2
+        sigma_0 = np.sqrt(var) # initial sigma
+        lamb_0 = sigma_0 # initial exponential (guess)
+        binsize = self.HDeltaSelMom.edges[1]- self.HDeltaSelMom.edges[0]
+        amp_0 = dmomsum*binsize # initial amplitude
+        p0 = np.array([amp_0, mu_0, sigma_0, lamb_0]) # initial parameters
+        # fit, returing optimum parameters and covariance
+        popt, pcov = curve_fit(fxn_expGauss, dmommid, self.HDeltaSelMom.data, p0, sigma=dmomerr)
+        print("All fit parameters",popt)
+        print("All fit covariance",pcov)
+        self.HDeltaSelMom.plotErrors(delselmom)
+        delselmom.plot(dmommid, fxn_expGauss(dmommid, *popt), 'r-',label="Fit")
+        delselmom.legend(loc="upper right")
+        fig.text(0.6, 0.5, f"$\\mu$ = {popt[1]:.3f}")
+        fig.text(0.6, 0.4, f"$\\sigma$ = {popt[2]:.3f}")
+        fig.text(0.6, 0.3,  f"$\\lambda$ = {popt[3]:.3f}")
