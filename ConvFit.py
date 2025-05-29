@@ -12,6 +12,7 @@ import math
 from scipy import special
 import SurfaceIds as SID
 import MyHist
+import h5py
 
 def fxn_expGauss(x, amp, mu, sigma, lamb):
     z = (mu + lamb*(sigma**2) + x)/(np.sqrt(2)*sigma)
@@ -50,9 +51,9 @@ class ConvFit(object):
         self.HUpMom = MyHist.MyHist(label="All "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)",title="Upstream Momentum at "+self.CompName)
         self.HUpSelMom = MyHist.MyHist(label="Selected "+self.PDGName, bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)")
         # Momentum comparison histograms
-        self.HDeltaMom = MyHist.MyHist(label="All "+self.PDGName, bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title ="$\\Delta$ Momentum at "+self.CompName)
+        self.HDeltaMom = MyHist.MyHist(label="All", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title ="$\\Delta$ Momentum at "+self.CompName)
 
-        self.HDeltaSelMom = MyHist.MyHist(label="Selected "+self.PDGName, bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)")
+        self.HDeltaSelMom = MyHist.MyHist(label="Selected", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)")
 
     def Print(self):
         print("Convolution Fit, nhits =",self.MinNHits,"Mom Range",self.MomRange,"Comparison at",self.CompName,"PDG",self.PDGName)
@@ -109,13 +110,12 @@ class ConvFit(object):
             # total momentum of upstream and downstream fits at the comparison point
             upMom = np.array(ak.flatten(upSegs[(upSegs.sid == self.SID) & (upSegs.mom.Z() < 0.0)].mom.magnitude(),axis=1))
             dnMom = np.array(ak.flatten(dnSegs[(dnSegs.sid == self.SID) & (dnSegs.mom.Z() > 0.0)].mom.magnitude(),axis=1))
-            self.HUpMom.fill(upMom[goodFit])
-            self.HDnMom.fill(dnMom[goodFit])
             if len(upMom) != len(dnMom):
                 print()
-                print("Upstream and Downstream fits don't match!")
+                print("Upstream and Downstream fits don't match!",len(upMom),len(dnMom))
                 continue
-
+            self.HUpMom.fill(upMom[goodFit])
+            self.HDnMom.fill(dnMom[goodFit])
             deltaMom = dnMom - upMom
             self.HDeltaMom.fill(deltaMom[goodFit])
             # count IPA and target intersections
@@ -209,3 +209,13 @@ class ConvFit(object):
         fig.text(0.6, 0.5, f"$\\mu$ = {popt[1]:.3f}")
         fig.text(0.6, 0.4, f"$\\sigma$ = {popt[2]:.3f}")
         fig.text(0.6, 0.3,  f"$\\lambda$ = {popt[3]:.3f}")
+
+    def Write(self,savefile):
+        with h5py.File(savefile, 'w') as hdf5file:
+            self.HDeltaMom.save(hdf5file)
+            self.HDeltaSelMom.save(hdf5file)
+
+    def Read(self,savefile):
+        self.HDeltaMom = MyHist.MyHist(label="All",file=savefile)
+        self.HDeltaSelMom = MyHist.MyHist(label="Selected",file=savefile)
+

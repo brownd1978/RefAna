@@ -55,13 +55,16 @@ class CeAna(object):
 #        ORho[1] = []
         OCost = []
         OFoil = []
+        OPhi = []
         # MC true foil intersection
         TgtRhoMC = []
         TgtCostMC = []
+        TgtPhiMC = []
         TgtFoilMC = []
         # Reco foil intersection
         TgtRho = []
         TgtCost = []
+        TgtPhi = []
         TgtFoil = []
         elPDG = 11
         for isid in range(len(self.SIDs)+1) : # add 1 for target
@@ -108,6 +111,7 @@ class CeAna(object):
             goodMC = goodMC & (OMom>self.MomRange[0]) & (OMom < self.MomRange[1])
             OMom = OMom[goodMC]
             ORho.extend(TrkMC[goodMC].pos.rho())
+            OPhi.extend(TrkMC[goodMC].pos.phi())
             OCost.extend(TrkMC[goodMC].mom.cosTheta())
 #            print(np.array(TrkMC.pos.z()))
             OFoil.extend(list(map(TargetFoil,TrkMC[goodMC].pos.z())))
@@ -150,11 +154,13 @@ class CeAna(object):
             MomResp[itarget].extend((avgmom-omomtgt))
             TgtRho.extend(ak.flatten(tgtsegs.pos.rho()))
             TgtCost.extend(ak.flatten(tgtsegs.mom.cosTheta()))
+            TgtPhi.extend(ak.flatten(tgtsegs.pos.phi()))
             TgtFoil.extend(map(TargetFoil,ak.flatten(tgtsegs.pos.z())))
 
             tgtsegsmc = SegsMC[(SegsMC.sid == SID.ST_Foils())]
             TgtRhoMC.extend(ak.flatten(tgtsegsmc.pos.rho()))
             TgtCostMC.extend(ak.flatten(tgtsegsmc.mom.cosTheta()))
+            TgtPhiMC.extend(ak.flatten(tgtsegsmc.pos.phi()))
             TgtFoilMC.extend(map(TargetFoil,ak.flatten(tgtsegsmc.pos.z())))
 
             # test for missing intersections
@@ -175,7 +181,7 @@ class CeAna(object):
         # plot positions
 #        print(TgtRho)
 #        tz = TgtPos.z()
-        fig, (tgtrho,tgtfoil,tgtcost) = plt.subplots(1,3,layout='constrained', figsize=(15,5))
+        fig, (tgtrho,tgtfoil,tgtcost,tgtphi) = plt.subplots(1,4,layout='constrained', figsize=(15,5))
         tgtrho.hist(TgtRho,label="Fit", bins=100, range=[20,80], histtype='step')
         tgtrho.hist(TgtRhoMC,label="MC", bins=100, range=[20,80], histtype='step')
         tgtrho.hist(ORho,label="Origin", bins=100, range=[20,80], histtype='step')
@@ -192,6 +198,12 @@ class CeAna(object):
         tgtcost.set_xlabel("Cos($\\Theta$)")
         tgtcost.set_title("Cos($\\Theta$)")
         tgtcost.legend(loc="upper left")
+        tgtphi.hist(TgtPhi,label="Fit", bins=100, range=[-math.pi,math.pi], histtype='step')
+        tgtphi.hist(TgtPhiMC,label="MC", bins=100, range=[-math.pi,math.pi], histtype='step')
+        tgtphi.hist(OPhi,label="Origin", bins=100, range=[-math.pi,math.pi], histtype='step')
+        tgtphi.set_xlabel("$\\Phi$")
+        tgtphi.set_title("$\\Phi$")
+        tgtphi.legend(loc="upper left")
 
 
         # plot Momentum

@@ -1,11 +1,24 @@
 import numpy as np
+import h5py
 class MyHist(object):
-    def __init__(self,bins,range,label,title="",xlabel=""):
-        data = []
-        self.data, self.edges = np.histogram(data, bins=bins, range=range)
+    def __init__(self,label,bins=100,range=[],title="",xlabel="",file=""):
         self.label = label
-        self.title = title
-        self.xlabel = xlabel
+        if(file != ""):
+            #locate this histogram as a group with the given label
+            with h5py.File(file, 'r') as hdf5file: # closes on exit
+                self.data = hdf5file["/"+self.label+"/data"][:]
+                self.edges = hdf5file["/"+self.label+"/edges"][:]
+                self.title = hdf5file.get("/"+self.label+"/title").asstr()[0]
+                self.xlabel = hdf5file.get("/"+self.label+"/xlabel").asstr()[0]
+                self.print()
+        else:
+            data = []
+            self.data, self.edges = np.histogram(data, bins=bins, range=range)
+            self.title = title
+            self.xlabel = xlabel
+
+    def print(self):
+        print("MyHist",self.label,self.title,"with",len(self.data),"bins and",self.integral(),"entries")
 
     def fill(self,data):
         newdata , newedges = np.histogram(data, bins=self.edges)
@@ -41,3 +54,12 @@ class MyHist(object):
         ones = np.ones(len(self.data))
         errors = np.maximum(ones,errors)
         return errors
+
+    def save(self,hdf5file):
+        grp = hdf5file.create_group(self.label)
+        grp.create_dataset("data",data=self.data)
+        grp.create_dataset("edges",data=self.edges)
+        dst = grp.create_dataset("title", shape=1, dtype=h5py.string_dtype())
+        dst[:] = self.title
+        dsx = grp.create_dataset("xlabel", shape=1, dtype=h5py.string_dtype())
+        dsx[:] = self.xlabel
