@@ -23,9 +23,12 @@ class PlotReflections(object):
         self.HUpMom = MyHist.MyHist(name="UpMom",label="All",file=savefile)
         self.HUpTgtMom = MyHist.MyHist(name="UpMom",label="$N_{ST}$>0",file=savefile)
         self.HUpNoMatMom = MyHist.MyHist(name="UpMom",label="No Material",file=savefile)
-        self.HDeltaMom = MyHist.MyHist(name="DeltaMom",label="All",file=savefile)
-        self.HDeltaTgtMom = MyHist.MyHist(name="DeltaMom",label="$N_{ST}$>0",file=savefile)
-        self.HDeltaNoMatMom = MyHist.MyHist(name="DeltaMom",label="No Material",file=savefile)
+        self.HDnDeltaMom = MyHist.MyHist(name="DnDeltaMom",label="All",file=savefile)
+        self.HDnDeltaTgtMom = MyHist.MyHist(name="DnDeltaMom",label="$N_{ST}$>0",file=savefile)
+        self.HDnDeltaNoMatMom = MyHist.MyHist(name="DnDeltaMom",label="No Material",file=savefile)
+        self.HUpDeltaMom = MyHist.MyHist(name="UpDeltaMom",label="All",file=savefile)
+        self.HUpDeltaTgtMom = MyHist.MyHist(name="UpDeltaMom",label="$N_{ST}$>0",file=savefile)
+        self.HUpDeltaNoMatMom = MyHist.MyHist(name="UpDeltaMom",label="No Material",file=savefile)
         #
         self.HupDeltaTime = MyHist.MyHist(name="DeltaTime",label="Upstream",file=savefile)
         self.HdnDeltaTime = MyHist.MyHist(name="DeltaTime",label="Downstream",file=savefile)
@@ -53,7 +56,7 @@ class PlotReflections(object):
         cselmat.legend(loc="upper right")
 
     def PlotMomentum(self):
-        fig, (upMom, dnMom, deltaMom) = plt.subplots(1,3,layout='constrained', figsize=(15,5))
+        fig, (upMom, dnMom) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
         upmom = self.HUpMom.plot(upMom)
         uptgtmom = self.HUpTgtMom.plot(upMom)
         upnomatmom = self.HUpNoMatMom.plot(upMom)
@@ -62,10 +65,17 @@ class PlotReflections(object):
         dntgtmom = self.HDnTgtMom.plot(dnMom)
         dnnomatmom = self.HDnNoMatMom.plot(dnMom)
         dnMom.legend(loc="upper right")
-        delmom = self.HDeltaMom.plot(deltaMom)
-        deltgtmom = self.HDeltaTgtMom.plot(deltaMom)
-        delnomatmom = self.HDeltaNoMatMom.plot(deltaMom)
-        deltaMom.legend(loc="upper right")
+
+    def PlotDeltaMomentum(self):
+        fig, (upDMom, dnDMom) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
+        dndelmom = self.HDnDeltaMom.plot(dnDMom)
+        dndeltgtmom = self.HDnDeltaTgtMom.plot(dnDMom)
+        dndelnomatmom = self.HDnDeltaNoMatMom.plot(dnDMom)
+        dnDMom.legend(loc="upper right")
+        updelmom = self.HUpDeltaMom.plot(upDMom)
+        updeltgtmom = self.HUpDeltaTgtMom.plot(upDMom)
+        updelnomatmom = self.HUpDeltaNoMatMom.plot(upDMom)
+        upDMom.legend(loc="upper right")
 
     def PlotTime(self):
         fig, (deltaTime) = plt.subplots(1,1,layout='constrained', figsize=(5,5))

@@ -26,7 +26,7 @@ class RefCheck(object):
             Files[i] = files[i]+":"+treename
         ibatch = 0
         print("Processing batch ",end=' ')
-        for batch,rep in uproot.iterate(Files,filter_name="/trk.trk|evtinfo|trksegs|trkmcsim|gtrksegsmc/i",report=True):
+        for batch,rep in uproot.iterate(Files,filter_name="/trk.trk|evtinfo|trksegs/i",report=True):
             print(ibatch,end=' ')
             ibatch = ibatch+1
             segs = batch['trksegs'] # track fit samples
@@ -76,4 +76,4 @@ class RefCheck(object):
                     if ( missingdndn[i] ):
                         print(f"\"{run[i]}:{subrun[i]}:{event[i]}\",")
 
-        print("Done processing")
+        print("\nDone processing")

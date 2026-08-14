@@ -58,10 +58,14 @@ class HistReflections(object):
         self.HUpMom = MyHist.MyHist(name="UpMom",label="All", bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)",title=self.PDGName+" Upstream Momentum at "+self.CompName)
         self.HUpTgtMom = MyHist.MyHist(name="UpMom",label="$N_{ST}$>0", bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)",title=self.PDGName+" Upstream Momentum at "+self.CompName)
         self.HUpNoMatMom = MyHist.MyHist(name="UpMom",label="No Material", bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)",title=self.PDGName+" Upstream Momentum at "+self.CompName)
-        # Momentum comparison histograms
-        self.HDeltaMom = MyHist.MyHist(name="DeltaMom",label="All", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+" $\\Delta$ Momentum at "+self.CompName)
-        self.HDeltaTgtMom = MyHist.MyHist(name="DeltaMom",label="$N_{ST}$>0", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+" $\\Delta$ Momentum at "+self.CompName)
-        self.HDeltaNoMatMom = MyHist.MyHist(name="DeltaMom",label="No Material", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+" $\\Delta$ Momentum at "+self.CompName)
+        # Momentum comparison histograms, at upstream and downstream end
+        self.HDnDeltaMom = MyHist.MyHist(name="DnDeltaMom",label="All", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
+        self.HDnDeltaTgtMom = MyHist.MyHist(name="DnDeltaMom",label="$N_{ST}$>0", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
+        self.HDnDeltaNoMatMom = MyHist.MyHist(name="DnDeltaMom",label="No Material", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
+
+        self.HUpDeltaMom = MyHist.MyHist(name="UpDeltaMom",label="All", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
+        self.HUpDeltaTgtMom = MyHist.MyHist(name="UpDeltaMom",label="$N_{ST}$>0", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
+        self.HUpDeltaNoMatMom = MyHist.MyHist(name="UpDeltaMom",label="No Material", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
 
         self.HdnDeltaTime = MyHist.MyHist(name="DeltaTime",label="Upstream",bins=nDeltaTimeBins, range=deltaTimeRange, xlabel="Downstream - Upstream time (ns)",title=self.PDGName+" $\\Delta$ Time at "+self.CompName)
         self.HupDeltaTime = MyHist.MyHist(name="DeltaTime",label="Downstream",bins=nDeltaTimeBins, range=deltaTimeRange, xlabel="Downstream - Upstream time (ns)",title=self.PDGName+" $\\Delta$ Time at "+self.CompName)
@@ -129,7 +133,6 @@ class HistReflections(object):
             self.HupDeltaTime.fill(np.array(ak.flatten(upDeltaTime)))
             goodDeltaT = (abs(dnDeltaTime) < self.MaxDeltaT) & (abs(upDeltaTime) < self.MaxDeltaT)
             goodFinal = ak.any(goodMatch & goodDeltaT,highlevel=True, axis=1)
-            print(goodFinal)
             NFinal +=  ak.count_nonzero(goodFinal)
             # extract properties to test
             updnMom = upSegs[updnseg & goodFinal].mom.magnitude()
@@ -143,7 +146,8 @@ class HistReflections(object):
             #
             self.HUpMom.fill(np.array(ak.flatten(updnMom)))
             self.HDnMom.fill(np.array(ak.flatten(dndnMom)))
-            self.HDeltaMom.fill(np.array(ak.flatten(dnDeltaMom)))
+            self.HDnDeltaMom.fill(np.array(ak.flatten(dnDeltaMom)))
+            self.HUpDeltaMom.fill(np.array(ak.flatten(upDeltaMom)))
             # count IPA and target intersections
             nfoil = ak.count_nonzero(upSegs.sid==SID.ST_Foils(),axis=1) + ak.count_nonzero(dnSegs.sid==SID.ST_Foils(),axis=1)
             self.HNST.fill(np.array(nfoil))
@@ -157,12 +161,16 @@ class HistReflections(object):
             self.HNSTTgt.fill(np.array(nfoiltgt))
             nipatgt = nipa[hasTgtInt]
             self.HNIPATgt.fill(np.array(nipatgt))
-            upTgtMom = updnMom[hasTgtInt]
-            dnTgtMom = dndnMom[hasTgtInt]
-            self.HUpTgtMom.fill(np.array(ak.flatten(upTgtMom)))
-            self.HDnTgtMom.fill(np.array(ak.flatten(dnTgtMom)))
-            deltaTgtMom = dnTgtMom - upTgtMom
-            self.HDeltaTgtMom.fill(np.array(ak.flatten(deltaTgtMom)))
+            updnTgtMom = updnMom[hasTgtInt]
+            dndnTgtMom = dndnMom[hasTgtInt]
+            upupTgtMom = updnMom[hasTgtInt]
+            dnupTgtMom = dndnMom[hasTgtInt]
+            self.HUpTgtMom.fill(np.array(ak.flatten(updnTgtMom)))
+            self.HDnTgtMom.fill(np.array(ak.flatten(dndnTgtMom)))
+            dndeltaTgtMom = dndnTgtMom - updnTgtMom
+            updeltaTgtMom = dnupTgtMom - upupTgtMom
+            self.HDnDeltaTgtMom.fill(np.array(ak.flatten(dndeltaTgtMom)))
+            self.HUpDeltaTgtMom.fill(np.array(ak.flatten(updeltaTgtMom)))
 
             self.HUpFitCon.fill(np.array(upFitCon[hasTgtInt]))
             self.HDnFitCon.fill(np.array(dnFitCon[hasTgtInt]))
@@ -173,15 +181,18 @@ class HistReflections(object):
 
             # no material
             goodNoMat = goodFinal & nomat
-            upNoMatMom = updnMom[goodNoMat]
-            dnNoMatMom = dndnMom[goodNoMat]
-            self.HUpNoMatMom.fill(np.array(ak.flatten(upNoMatMom)))
-            self.HDnNoMatMom.fill(np.array(ak.flatten(dnNoMatMom)))
-            deltaNoMatMom = dnNoMatMom - upNoMatMom
-            self.HDeltaNoMatMom.fill(np.array(ak.flatten(deltaNoMatMom)))
+            updnNoMatMom = updnMom[goodNoMat]
+            dndnNoMatMom = dndnMom[goodNoMat]
+            upupNoMatMom = updnMom[goodNoMat]
+            dnupNoMatMom = dndnMom[goodNoMat]
+            self.HUpNoMatMom.fill(np.array(ak.flatten(updnNoMatMom)))
+            self.HDnNoMatMom.fill(np.array(ak.flatten(dndnNoMatMom)))
+            dndeltaNoMatMom = dndnNoMatMom - updnNoMatMom
+            updeltaNoMatMom = dnupNoMatMom - upupNoMatMom
+            self.HDnDeltaNoMatMom.fill(np.array(ak.flatten(dndeltaNoMatMom)))
+            self.HUpDeltaNoMatMom.fill(np.array(ak.flatten(updeltaNoMatMom)))
 
-        print()
-        print("From", NEvent,"total events found", NGood, "with good reco,", NMatch,"matching reflections,", NFinal, "final selections and",self.HUpTgtMom.integral(), "with Target")
+        print("\nFrom", NEvent,"total events found", NGood, "with good reco,", NMatch,"matching reflections,", NFinal, "final selections and",self.HUpTgtMom.integral(), "with Target")
 
     def Write(self,savefile):
         with h5py.File(savefile, 'w') as hdf5file:
@@ -205,9 +216,12 @@ class HistReflections(object):
             self.HUpTgtMom.save(hdf5file)
             self.HUpNoMatMom.save(hdf5file)
             #
-            self.HDeltaMom.save(hdf5file)
-            self.HDeltaTgtMom.save(hdf5file)
-            self.HDeltaNoMatMom.save(hdf5file)
+            self.HDnDeltaMom.save(hdf5file)
+            self.HUpDeltaMom.save(hdf5file)
+            self.HDnDeltaTgtMom.save(hdf5file)
+            self.HUpDeltaTgtMom.save(hdf5file)
+            self.HDnDeltaNoMatMom.save(hdf5file)
+            self.HUpDeltaNoMatMom.save(hdf5file)
             #
             self.HdnDeltaTime.save(hdf5file)
             self.HupDeltaTime.save(hdf5file)
