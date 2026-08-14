@@ -30,6 +30,20 @@ class PlotReflections(object):
         self.HUpDeltaTgtMom = MyHist.MyHist(name="UpDeltaMom",label="$N_{ST}$>0",file=savefile)
         self.HUpDeltaNoMatMom = MyHist.MyHist(name="UpDeltaMom",label="No Material",file=savefile)
         #
+        self.HUpMatUpExtrap = MyHist.MyHist(name="UpMatUpExtrap",label="UpExtrap",file=savefile)
+        self.HUpMatDnExtrap = MyHist.MyHist(name="UpMatDnExtrap",label="DnExtrap",file=savefile)
+        self.HUpMatFit = MyHist.MyHist(name="UpMatFit",label="Fit",file=savefile)
+        self.HUpMatTgtUpExtrap = MyHist.MyHist(name="UpMatTgtUpExtrap",label="UpExtrap",file=savefile)
+        self.HUpMatTgtDnExtrap = MyHist.MyHist(name="UpMatTgtDnExtrap",label="DnExtrap",file=savefile)
+        self.HUpMatTgtFit = MyHist.MyHist(name="UpMatTgtFit",label="Fit",file=savefile)
+        self.HUpMatNoMatUpExtrap = MyHist.MyHist(name="UpMatNoMatUpExtrap",label="UpExtrap",file=savefile)
+        self.HUpMatNoMatDnExtrap = MyHist.MyHist(name="UpMatNoMatDnExtrap",label="DnExtrap",file=savefile)
+        self.HUpMatNoMatFit = MyHist.MyHist(name="UpMatNoMatFit",label="Fit",file=savefile)
+        #
+        self.HUpMatMC = MyHist.MyHist(name="UpMatMC",label="MC",file=savefile)
+        self.HUpMatTgtMC = MyHist.MyHist(name="UpMatTgtMC",label="MC",file=savefile)
+        self.HUpMatNoMatMC = MyHist.MyHist(name="UpMatNoMatMC",label="MC",file=savefile)
+        #
         self.HupDeltaTime = MyHist.MyHist(name="DeltaTime",label="Upstream",file=savefile)
         self.HdnDeltaTime = MyHist.MyHist(name="DeltaTime",label="Downstream",file=savefile)
 
@@ -76,6 +90,24 @@ class PlotReflections(object):
         updeltgtmom = self.HUpDeltaTgtMom.plot(upDMom)
         updelnomatmom = self.HUpDeltaNoMatMom.plot(upDMom)
         upDMom.legend(loc="upper right")
+
+    def PlotUpstreamMat(self):
+        fig, (all, tgt, nomat) = plt.subplots(1,3,layout='constrained', figsize=(15,5))
+        upxtrapdmom = self.HUpMatUpExtrap.plot(all)
+        dnxtrapdmom = self.HUpMatDnExtrap.plot(all)
+        fitdmom = self.HUpMatFit.plot(all)
+        mcdmom = self.HUpMatMC.plot(all)
+        all.legend(loc="upper left")
+        upxtrapdmom = self.HUpMatTgtUpExtrap.plot(tgt)
+        dnxtrapdmom = self.HUpMatTgtDnExtrap.plot(tgt)
+        fitdmom = self.HUpMatTgtFit.plot(tgt)
+        mcdmom = self.HUpMatTgtMC.plot(tgt)
+        tgt.legend(loc="upper left")
+        upxtrapdmom = self.HUpMatNoMatUpExtrap.plot(nomat)
+        dnxtrapdmom = self.HUpMatNoMatDnExtrap.plot(nomat)
+        fitdmom = self.HUpMatNoMatFit.plot(nomat)
+        mcdmom = self.HUpMatNoMatMC.plot(nomat)
+        nomat.legend(loc="upper left")
 
     def PlotTime(self):
         fig, (deltaTime) = plt.subplots(1,1,layout='constrained', figsize=(5,5))

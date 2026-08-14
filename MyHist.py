@@ -3,7 +3,7 @@ import h5py
 import math
 
 class MyHist(object):
-    def __init__(self,name,label,title="",xlabel="",bins=100,range=[],file=""):
+    def __init__(self,name,label,title="",xlabel="",bins=100,range=[],file="",verbose=False):
         self.name = name
         self.label = label
         if(file != ""):
@@ -14,8 +14,9 @@ class MyHist(object):
                 self.edges = hdf5file[grp+"/edges"][:]
                 self.title = hdf5file.get(grp+"/title").asstr()[0]
                 self.xlabel = hdf5file.get(grp+"/xlabel").asstr()[0]
-                print("Read ",end=' ')
-                self.print()
+                if(verbose):
+                    print("Read ",end=' ')
+                    self.print()
         else:
             data = []
             self.data, self.edges = np.histogram(data, bins=bins, range=range)
@@ -114,7 +115,7 @@ class MyHist(object):
             jbin += 1
         return binmid, binval, binerr
 
-    def save(self,hdf5file):
+    def save(self,hdf5file,verbose=False):
         grp = hdf5file.create_group(self.groupname())
         grp.create_dataset("data",data=self.data)
         grp.create_dataset("edges",data=self.edges)
@@ -122,4 +123,5 @@ class MyHist(object):
         dst[:] = self.title
         dsx = grp.create_dataset("xlabel", shape=1, dtype=h5py.string_dtype())
         dsx[:] = self.xlabel
-        print("Saved",self.groupname(),"to",hdf5file.filename)
+        if(verbose):
+            print("Saved",self.groupname(),"to",hdf5file.filename)
