@@ -47,7 +47,10 @@ class HistReflections(object):
         nMomBins = 100
         momrange=(40.0,220.0)
         nDeltaMomBins = 150
-        deltamomrange=(-10,5)
+        deltaMomRange=(-10,5)
+        nDeltaMomBins = 150
+        nMomResBins = 150
+        momResRange=(-3,3)
         nDeltaTimeBins = 100
         deltaTimeRange = [-8,8]
         nUpMatBins = 100
@@ -62,13 +65,13 @@ class HistReflections(object):
         self.HUpNoMatMom = MyHist.MyHist(name="UpMom",label="No Material", bins=nMomBins, range=momrange, xlabel="Fit Momentum (MeV)",title=self.PDGName+" Upstream Momentum at "+self.CompName)
 
         # Momentum difference histograms, at upstream and downstream directions
-        self.HDnDeltaMom = MyHist.MyHist(name="DnDeltaMom",label="All", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
-        self.HDnDeltaTgtMom = MyHist.MyHist(name="DnDeltaMom",label="$N_{ST}$>0", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
-        self.HDnDeltaNoMatMom = MyHist.MyHist(name="DnDeltaMom",label="No Material", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
+        self.HDnDeltaMom = MyHist.MyHist(name="DnDeltaMom",label="All", bins=nDeltaMomBins, range=deltaMomRange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
+        self.HDnDeltaTgtMom = MyHist.MyHist(name="DnDeltaMom",label="$N_{ST}$>0", bins=nDeltaMomBins, range=deltaMomRange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
+        self.HDnDeltaNoMatMom = MyHist.MyHist(name="DnDeltaMom",label="No Material", bins=nDeltaMomBins, range=deltaMomRange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Downstream $\\Delta$ Momentum at "+self.CompName)
 
-        self.HUpDeltaMom = MyHist.MyHist(name="UpDeltaMom",label="All", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
-        self.HUpDeltaTgtMom = MyHist.MyHist(name="UpDeltaMom",label="$N_{ST}$>0", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
-        self.HUpDeltaNoMatMom = MyHist.MyHist(name="UpDeltaMom",label="No Material", bins=nDeltaMomBins, range=deltamomrange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
+        self.HUpDeltaMom = MyHist.MyHist(name="UpDeltaMom",label="All", bins=nDeltaMomBins, range=deltaMomRange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
+        self.HUpDeltaTgtMom = MyHist.MyHist(name="UpDeltaMom",label="$N_{ST}$>0", bins=nDeltaMomBins, range=deltaMomRange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
+        self.HUpDeltaNoMatMom = MyHist.MyHist(name="UpDeltaMom",label="No Material", bins=nDeltaMomBins, range=deltaMomRange, xlabel="Downstream - Upstream Momentum (MeV)",title=self.PDGName+"Upstream $\\Delta$ Momentum at "+self.CompName)
 
         # Upstream material effect: compare fit and extrapolation (upstream and downstream fits)
         self.HUpMatUpExtrap = MyHist.MyHist(name="UpMatUpExtrap",label="UpExtrap",bins=nUpMatBins, range=upMatRange, xlabel="$\\Delta$ Momentum (MeV)",title=self.PDGName+"Upstream Material $\\Delta$ P (All)")
@@ -84,6 +87,9 @@ class HistReflections(object):
         self.HUpMatMC = MyHist.MyHist(name="UpMatMC",label="MC",bins=nUpMatBins, range=upMatRange, xlabel="$\\Delta$ Momentum (MeV)",title=self.PDGName+"Upstream Material $\\Delta$ P (All)")
         self.HUpMatTgtMC = MyHist.MyHist(name="UpMatTgtMC",label="MC",bins=nUpMatBins, range=upMatRange, xlabel="$\\Delta$ Momentum (MeV)",title=self.PDGName+"Upstream Material $\\Delta$ P (Tgt)")
         self.HUpMatNoMatMC = MyHist.MyHist(name="UpMatNoMatMC",label="MC",bins=nUpMatBins, range=upMatRange, xlabel="$\\Delta$ Momentum (MeV)",title=self.PDGName+"Upstream Material $\\Delta$ P (NoMat)")
+        # Resolution
+        self.HUpMomRes = MyHist.MyHist(name="UpMomRes",label="All",bins=nMomResBins, range=momResRange, xlabel="Reco-MC Momentum (MeV)",title=self.PDGName+"Upstream Track Momentum Resolution at "+self.compname)
+        self.HDnMomRes = MyHist.MyHist(name="DnMomRes",label="All",bins=nMomResBins, range=momResRange, xlabel="Reco-MC Momentum (MeV)",title=self.PDGName+"Downstream Track Momentum Resolution at "+self.compname)
 
         # Time differences
         self.HdnDeltaTime = MyHist.MyHist(name="DeltaTime",label="Upstream",bins=nDeltaTimeBins, range=deltaTimeRange, xlabel="Downstream - Upstream time (ns)",title=self.PDGName+" $\\Delta$ Time at "+self.CompName)
@@ -254,6 +260,11 @@ class HistReflections(object):
             dnmatmc = dndnMomMC[dnGoodMC] - dnupMomMC[dnGoodMC]
             self.HUpMatMC.fill(np.array(upmatmc))
 
+            upres = upupMom[upupGoodMC] - upupMomMC[upupGoodMC]
+            dnres = dndnMom[dndnGoodMC] - dndnMomMC[dndnGoodMC]
+            self.HUpMomRes.fill(np.array(upres))
+            self.HDnMomRes.fill(np.array(dnres))
+
             updnsegtgtmc = updnsegmc & hasTgtInt & upGoodMC
             dndnsegtgtmc = dndnsegmc & hasTgtInt & dnGoodMC
             upupsegtgtmc = upupsegmc & hasTgtInt & upGoodMC
@@ -279,6 +290,7 @@ class HistReflections(object):
             upmatnomatmc = updnMomNoMatMC - upupMomNoMatMC
             dnmatnomatmc = dndnMomNoMatMC - dnupMomNoMatMC
             self.HUpMatNoMatMC.fill(np.array(ak.flatten(upmatnomatmc)))
+
 
 
         print("\nFrom", NEvent,"total events found", NGood, "with good reco,", NMatch,"matching reflections,", NFinal, "final selections and",self.HUpTgtMom.integral(), "with Target")
@@ -325,6 +337,9 @@ class HistReflections(object):
             self.HUpMatMC.save(hdf5file)
             self.HUpMatTgtMC.save(hdf5file)
             self.HUpMatNoMatMC.save(hdf5file)
+
+            self.HUpMomRes.save(hdf5file)
+            self.HDnMomRes.save(hdf5file)
             #
             self.HdnDeltaTime.save(hdf5file)
             self.HupDeltaTime.save(hdf5file)

@@ -176,7 +176,7 @@ class FitReflections(object):
         dmomerr = self.HDeltaNoMatMom.binErrors()
         dmommid = self.HDeltaNoMatMom.binCenters()
         dmomsum = self.HDeltaNoMatMom.integral()
-        binsize = self.HDeltaNoMatMom.edges[1]- self.HDeltaNoMatMom.edges[0]
+        binsize = self.HDeltaNoMatMom.binWidth()
         # initialize the fit parameters
         loc_0 = np.mean(dmommid*self.HDeltaNoMatMom.data/dmomsum) # initial mean
         beta_0 = 1.0
@@ -193,7 +193,7 @@ class FitReflections(object):
         self.HDeltaNoMatMom.plotErrors(delmom)
         delmom.plot(dmommid, fxn_CrystalBall(dmommid, *p0), 'r-',label="Fit")
         delmom.legend(loc="upper right")
-        
+
         fig.text(0.1, 0.8, f"$\\beta$ = {popt[1]:.3f} $\\pm$ {perr[1]:.3f}")
         fig.text(0.1, 0.7, f"m = {popt[2]:.3f} $\\pm$ {perr[2]:.3f}")
         fig.text(0.1, 0.6,  f"loc = {popt[3]:.3f} $\\pm$ {perr[3]:.3f}")
@@ -251,7 +251,7 @@ class FitReflections(object):
         self.HDeltaTgtMomB12.plotErrors(delmom)
         delmom.plot(dmommid, fxn_CrystalBall(dmommid, *p0), 'r-',label="Fit")
         delmom.legend(loc="upper right")
-        
+
         fig.text(0.1, 0.8, f"$\\beta$ = {popt[1]:.3f} $\\pm$ {perr[1]:.3f}")
         fig.text(0.1, 0.7, f"m = {popt[2]:.3f} $\\pm$ {perr[2]:.3f}")
         fig.text(0.1, 0.6,  f"loc = {popt[3]:.3f} $\\pm$ {perr[3]:.3f}")
@@ -279,7 +279,7 @@ class FitReflections(object):
         self.HDeltaTgtMomB34.plotErrors(delmom)
         delmom.plot(dmommid, fxn_CrystalBall(dmommid, *p0), 'r-',label="Fit")
         delmom.legend(loc="upper right")
-        
+
         fig.text(0.1, 0.8, f"$\\beta$ = {popt[1]:.3f} $\\pm$ {perr[1]:.3f}")
         fig.text(0.1, 0.7, f"m = {popt[2]:.3f} $\\pm$ {perr[2]:.3f}")
         fig.text(0.1, 0.6,  f"loc = {popt[3]:.3f} $\\pm$ {perr[3]:.3f}")
@@ -307,7 +307,7 @@ class FitReflections(object):
         self.HDeltaTgtMomB56.plotErrors(delmom)
         delmom.plot(dmommid, fxn_CrystalBall(dmommid, *p0), 'r-',label="Fit")
         delmom.legend(loc="upper right")
-        
+
         fig.text(0.1, 0.8, f"$\\beta$ = {popt[1]:.3f} $\\pm$ {perr[1]:.3f}")
         fig.text(0.1, 0.7, f"m = {popt[2]:.3f} $\\pm$ {perr[2]:.3f}")
         fig.text(0.1, 0.6,  f"loc = {popt[3]:.3f} $\\pm$ {perr[3]:.3f}")
@@ -335,7 +335,7 @@ class FitReflections(object):
         self.HDeltaTgtMomB78.plotErrors(delmom)
         delmom.plot(dmommid, fxn_CrystalBall(dmommid, *p0), 'r-',label="Fit")
         delmom.legend(loc="upper right")
-        
+
         fig.text(0.1, 0.8, f"$\\beta$ = {popt[1]:.3f} $\\pm$ {perr[1]:.3f}")
         fig.text(0.1, 0.7, f"m = {popt[2]:.3f} $\\pm$ {perr[2]:.3f}")
         fig.text(0.1, 0.6,  f"loc = {popt[3]:.3f} $\\pm$ {perr[3]:.3f}")
@@ -363,7 +363,7 @@ class FitReflections(object):
         self.HDeltaTgtMomB9p.plotErrors(delmom)
         delmom.plot(dmommid, fxn_CrystalBall(dmommid, *p0), 'r-',label="Fit")
         delmom.legend(loc="upper right")
-        
+
         fig.text(0.1, 0.8, f"$\\beta$ = {popt[1]:.3f} $\\pm$ {perr[1]:.3f}")
         fig.text(0.1, 0.7, f"m = {popt[2]:.3f} $\\pm$ {perr[2]:.3f}")
         fig.text(0.1, 0.6,  f"loc = {popt[3]:.3f} $\\pm$ {perr[3]:.3f}")
@@ -486,7 +486,7 @@ class FitReflections(object):
         delmomB34.text(-8, 0.5*maxval34,  f"scale = {refparnomat34[4]:.3f} $\\pm$ {refperrnomat34[4]:.3f}")
 
         # B56
-        
+
         dmomerr56 = self.HDeltaTgtMomB56.binErrors()
         dmommid56 = self.HDeltaTgtMomB56.binCenters()
         dmomsum56 = self.HDeltaTgtMomB56.integral()
@@ -511,10 +511,10 @@ class FitReflections(object):
         delmomB56.text(-8, 0.8*maxval56, f"$\\beta$ = {refparnomat56[1]:.3f} $\\pm$ {refperrnomat56[1]:.3f}")
         delmomB56.text(-8, 0.7*maxval56, f"m = {refparnomat56[2]:.3f} $\\pm$ {refperrnomat56[2]:.3f}")
         delmomB56.text(-8, 0.6*maxval56,  f"loc = {refparnomat56[3]:.3f} $\\pm$ {refperrnomat56[3]:.3f}")
-        delmomB56.text(-8, 0.5*maxval56,  f"scale = {refparnomat56[4]:.3f} $\\pm$ {refperrnomat56[4]:.3f}") 
+        delmomB56.text(-8, 0.5*maxval56,  f"scale = {refparnomat56[4]:.3f} $\\pm$ {refperrnomat56[4]:.3f}")
 
         # B78
-        
+
         dmomerr78 = self.HDeltaTgtMomB78.binErrors()
         dmommid78 = self.HDeltaTgtMomB78.binCenters()
         dmomsum78 = self.HDeltaTgtMomB78.integral()
@@ -539,10 +539,10 @@ class FitReflections(object):
         delmomB78.text(-8, 0.8*maxval78, f"$\\beta$ = {refparnomat78[1]:.3f} $\\pm$ {refperrnomat78[1]:.3f}")
         delmomB78.text(-8, 0.7*maxval78, f"m = {refparnomat78[2]:.3f} $\\pm$ {refperrnomat78[2]:.3f}")
         delmomB78.text(-8, 0.6*maxval78,  f"loc = {refparnomat78[3]:.3f} $\\pm$ {refperrnomat78[3]:.3f}")
-        delmomB78.text(-8, 0.5*maxval78,  f"scale = {refparnomat78[4]:.3f} $\\pm$ {refperrnomat78[4]:.3f}")       
+        delmomB78.text(-8, 0.5*maxval78,  f"scale = {refparnomat78[4]:.3f} $\\pm$ {refperrnomat78[4]:.3f}")
 
         # B9p
-        
+
         dmomerr9p = self.HDeltaTgtMomB9p.binErrors()
         dmommid9p = self.HDeltaTgtMomB9p.binCenters()
         dmomsum9p = self.HDeltaTgtMomB9p.integral()
@@ -567,7 +567,7 @@ class FitReflections(object):
         delmomB9p.text(-8, 0.8*maxval9p, f"$\\beta$ = {refparnomat9p[1]:.3f} $\\pm$ {refperrnomat9p[1]:.3f}")
         delmomB9p.text(-8, 0.7*maxval9p, f"m = {refparnomat9p[2]:.3f} $\\pm$ {refperrnomat9p[2]:.3f}")
         delmomB9p.text(-8, 0.6*maxval9p,  f"loc = {refparnomat9p[3]:.3f} $\\pm$ {refperrnomat9p[3]:.3f}")
-        delmomB9p.text(-8, 0.5*maxval9p,  f"scale = {refparnomat9p[4]:.3f} $\\pm$ {refperrnomat9p[4]:.3f}")               
+        delmomB9p.text(-8, 0.5*maxval9p,  f"scale = {refparnomat9p[4]:.3f} $\\pm$ {refperrnomat9p[4]:.3f}")
 
         if self.hasCe:
             fig, (cefitreso,cefitresp) = plt.subplots(1,2,layout='constrained', figsize=(15,5))
@@ -635,12 +635,12 @@ class FitReflections(object):
             cecompresp.text(-8, 0.5*maxval,  f"scale = {respcomppars[4]:.3f} $\\pm$ {refperrtgt[4]:.3f}")
             cecompresp.legend(loc="upper right")
 
-            ### BINNED ### 
+            ### BINNED ###
 
             fig, (aB12, aB34, aB56, aB78, aB9p) = plt.subplots(1,5,layout='constrained', figsize=(15,5))
 
             # B12
-        
+
             # fit to un-convolved Crystal Ball
             # initialize the fit parameters
             cebins = self.HCeTgtMomB12.binCenters()
@@ -677,7 +677,7 @@ class FitReflections(object):
             aB12.text(-8, 0.5*maxval,  f"scale = {comppars[4]:.3f} $\\pm$ {refperrtgt[4]:.3f}")
 
             # B34
-        
+
             # fit to un-convolved Crystal Ball
             # initialize the fit parameters
             cebins = self.HCeTgtMomB34.binCenters()
@@ -714,7 +714,7 @@ class FitReflections(object):
             aB34.text(-8, 0.5*maxval,  f"scale = {comppars[4]:.3f} $\\pm$ {refperrtgt[4]:.3f}")
 
             # B56
-        
+
             # fit to un-convolved Crystal Ball
             # initialize the fit parameters
             cebins = self.HCeTgtMomB56.binCenters()
@@ -751,7 +751,7 @@ class FitReflections(object):
             aB56.text(-8, 0.5*maxval,  f"scale = {comppars[4]:.3f} $\\pm$ {refperrtgt[4]:.3f}")
 
             # B78
-        
+
             # fit to un-convolved Crystal Ball
             # initialize the fit parameters
             cebins = self.HCeTgtMomB78.binCenters()
@@ -788,7 +788,7 @@ class FitReflections(object):
             aB78.text(-8, 0.5*maxval,  f"scale = {comppars[4]:.3f} $\\pm$ {refperrtgt[4]:.3f}")
 
             # B9p
-        
+
             # fit to un-convolved Crystal Ball
             # initialize the fit parameters
             cebins = self.HCeTgtMomB9p.binCenters()

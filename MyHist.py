@@ -1,8 +1,11 @@
 import numpy as np
 import h5py
 import math
+from scipy import stats as stats
+from scipy.optimize import curve_fit
 
-class MyHist(object):
+
+class MyHist:
     def __init__(self,name,label,title="",xlabel="",bins=100,range=[],file="",verbose=False):
         self.name = name
         self.label = label
@@ -58,7 +61,7 @@ class MyHist(object):
         return 0.5*(self.edges[maxindex]+self.edges[maxindex+1])
 
     # bin range for bins with values above the given value
-    def binRange(self,minval):
+    def binRangeAboveValue(self,minval):
         istart=0
         while((istart < len(self.data)) & (self.data[istart]<minval)):
             istart += 1
@@ -68,11 +71,43 @@ class MyHist(object):
         iend += 1
         return [istart,iend]
 
+    def binCenter(self, ibin):
+        if (ibin > 0 & ibin < len(self.data)):
+            return  0.5*(self.edges[ibin] + self.edges[ibin+1])
+        elif ibin < 0:
+            return self.edges[0]
+        else:
+            return self.edges[len(self.data)]
+
     def binCenters(self):
         midbin = np.zeros(len(self.data))
         for ibin in range(len(self.data)):
             midbin[ibin] = 0.5*(self.edges[ibin] + self.edges[ibin+1]) # edges have 1 more entry than data
         return midbin
+
+    def inBin(self,ibin,xval):
+        if (ibin >= 0 & ibin < len(self.data)):
+            return xval >= self.edges[ibin] & xval < self.edges[ibin+1]
+        elif ibin < 0:
+            return xval < self.edges[0]
+        else:
+            return xval > self.edges[-1]
+
+    def binIndex(self, xval):
+        if (xval >= self.edges[0] & xval < self.edges[-1]) :
+            ibin = int((xval + 0.5 -self.edges[0])/self.binWidth())
+            if self.inBin(ibin,xval):
+                return ibin
+            else:
+                # manual scan
+                for ibin in range(len(self.data)):
+                    if(self.inBin(xval)):
+                        return ibin
+                return -1
+        elif xval > self.edges[-1]:
+            return len(self.edges)
+        else:
+            return -1
 
     def binWidth(self,ibin=0):
         return self.edges[ibin+1]-self.edges[ibin]
@@ -89,30 +124,35 @@ class MyHist(object):
 
     def FWHM(self):
         halfmax = 0.5*self.maxVal()
-        [ilow,ihigh] = self.binRange(halfmax)
+        [ilow,ihigh] = self.binRangeAboveValue(halfmax)
         # this is intentionally one higher than ilow, as bin edges are at the lower edge
         fwhm = self.edges[ihigh]-self.edges[ilow]
         return fwhm
 
     def binErrors(self):
-        # assume unweighted bins
+        # assume unweighted bins, Poisson statis
         errors = np.sqrt(self.data)
         ones = np.ones(len(self.data))
         errors = np.maximum(ones,errors)
         return errors
 
-    def fitArrays(self,brange=[0,-1]):
-        if (brange[1] < 0):
-            brange[1] = len(self.data)
-        binmid = np.zeros(brange[1]-brange[0])
-        binval = np.zeros(brange[1]-brange[0])
-        binerr = np.zeros(brange[1]-brange[0])
-        jbin = 0
-        for ibin in range(brange[0],brange[1]):
-            binmid[jbin] = 0.5*(self.edges[ibin] + self.edges[ibin+1])
-            binval[jbin] = self.data[ibin]
-            binerr[jbin] = max(1.0,math.sqrt(self.data[ibin]))
-            jbin += 1
+    def binRange(self,xrange):
+        if (xrange[1] < xrange[0]):
+            return[0,len(self.data)-1]
+        istart=0
+        while((istart < len(self.data)) & (self.data[istart]<minval)):
+            istart += 1
+        iend=len(self.data)-1
+        while((iend > 0) & (self.data[iend]<minval)):
+            iend -= 1
+        iend += 1
+        return [istart,iend]
+
+    def fitArrays(self,xrange=[0,-1]):
+        br = self.binRange(xrange)
+        binmid = self.binCenters()[br[0]:br[1]]
+        binval = self.data[br[0]:br[1]]
+        binerr = self.binErrors()[br[0]:br[1]]
         return binmid, binval, binerr
 
     def save(self,hdf5file,verbose=False):
@@ -125,3 +165,15 @@ class MyHist(object):
         dsx[:] = self.xlabel
         if(verbose):
             print("Saved",self.groupname(),"to",hdf5file.filename)
+
+    def Fit(self,fitobj,xrange=[0,-1],verbose=False,subplot=None):
+        params,pcov,binmid = fitobj.fit(self,verbose=verbose,xrange=xrange)
+        if subplot != None:
+            fval = fitobj.fxn(binmid, *params)
+            subplot.plot(binmid, fval, 'r-',label="Fit")
+            ymax = 0.8
+            subplot.text(self.edges[-1], ymax, f"{fitobj.name()}",transform=subplot.get_xaxis_transform(),ha="right" )
+            for ipar in range(len(params)):
+                yval = ymax - 0.05*(1+ipar)
+                subplot.text(self.edges[-1], yval, f"{fitobj.pname[ipar]} = {params[ipar]:.3f}",transform=subplot.get_xaxis_transform(),ha="right" )
+        return params, pcov

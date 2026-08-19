@@ -4,6 +4,10 @@
 from matplotlib import pyplot as plt
 import MyHist
 import h5py
+import math
+import FitFunctions
+from scipy.optimize import curve_fit
+
 class PlotReflections(object):
     def __init__(self,savefile):
         self.HUpTQ = MyHist.MyHist(name="HUpTQ",label="Up TrkQual",file=savefile)
@@ -43,6 +47,9 @@ class PlotReflections(object):
         self.HUpMatMC = MyHist.MyHist(name="UpMatMC",label="MC",file=savefile)
         self.HUpMatTgtMC = MyHist.MyHist(name="UpMatTgtMC",label="MC",file=savefile)
         self.HUpMatNoMatMC = MyHist.MyHist(name="UpMatNoMatMC",label="MC",file=savefile)
+        #
+        self.HUpMomRes = MyHist.MyHist(name="UpMomRes",label="All",file=savefile)
+        self.HDnMomRes = MyHist.MyHist(name="DnMomRes",label="All",file=savefile)
         #
         self.HupDeltaTime = MyHist.MyHist(name="DeltaTime",label="Upstream",file=savefile)
         self.HdnDeltaTime = MyHist.MyHist(name="DeltaTime",label="Downstream",file=savefile)
@@ -90,6 +97,17 @@ class PlotReflections(object):
         updeltgtmom = self.HUpDeltaTgtMom.plot(upDMom)
         updelnomatmom = self.HUpDeltaNoMatMom.plot(upDMom)
         upDMom.legend(loc="upper right")
+
+    def PlotMomRes(self):
+        fig, (upMomRes, dnMomRes) = plt.subplots(1,2,layout='constrained', figsize=(10,5))
+        dnmomres = self.HDnMomRes.plot(dnMomRes)
+        CB = FitFunctions.CrystalBall()
+        self.HDnMomRes.Fit(CB,subplot=dnMomRes)
+        dnMomRes.legend(loc="upper right")
+        upmomres = self.HUpMomRes.plot(upMomRes)
+        RCB = FitFunctions.CrystalBall(reverse=True)
+        self.HUpMomRes.Fit(RCB,subplot=upMomRes)
+        upMomRes.legend(loc="upper right")
 
     def PlotUpstreamMat(self):
         fig, (all, tgt, nomat) = plt.subplots(1,3,layout='constrained', figsize=(15,5))
