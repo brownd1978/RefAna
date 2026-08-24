@@ -88,8 +88,8 @@ class HistReflections(object):
         self.HUpMatTgtMC = MyHist.MyHist(name="UpMatTgtMC",label="MC",bins=nUpMatBins, range=upMatRange, xlabel="$\\Delta$ Momentum (MeV)",title=self.PDGName+"Upstream Material $\\Delta$ P (Tgt)")
         self.HUpMatNoMatMC = MyHist.MyHist(name="UpMatNoMatMC",label="MC",bins=nUpMatBins, range=upMatRange, xlabel="$\\Delta$ Momentum (MeV)",title=self.PDGName+"Upstream Material $\\Delta$ P (NoMat)")
         # Resolution
-        self.HUpMomRes = MyHist.MyHist(name="UpMomRes",label="All",bins=nMomResBins, range=momResRange, xlabel="Reco-MC Momentum (MeV)",title=self.PDGName+"Upstream Track Momentum Resolution at "+self.compname)
-        self.HDnMomRes = MyHist.MyHist(name="DnMomRes",label="All",bins=nMomResBins, range=momResRange, xlabel="Reco-MC Momentum (MeV)",title=self.PDGName+"Downstream Track Momentum Resolution at "+self.compname)
+        self.HUpMomRes = MyHist.MyHist(name="UpMomRes",label="All",bins=nMomResBins, range=momResRange, xlabel="Reco-MC Momentum (MeV)",title=self.PDGName+"Upstream Track Momentum Resolution at "+self.CompName)
+        self.HDnMomRes = MyHist.MyHist(name="DnMomRes",label="All",bins=nMomResBins, range=momResRange, xlabel="Reco-MC Momentum (MeV)",title=self.PDGName+"Downstream Track Momentum Resolution at "+self.CompName)
 
         # Time differences
         self.HdnDeltaTime = MyHist.MyHist(name="DeltaTime",label="Upstream",bins=nDeltaTimeBins, range=deltaTimeRange, xlabel="Downstream - Upstream time (ns)",title=self.PDGName+" $\\Delta$ Time at "+self.CompName)

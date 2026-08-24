@@ -71,6 +71,13 @@ class MyHist:
         iend += 1
         return [istart,iend]
 
+    def rangeAboveValue(self,minval):
+        brange = self.binRangeAboveValue(minval)
+        if brange[1] >= brange[0]:
+            return np.array([self.edges[brange[0]],self.edges[brange[1]+1]])
+        else:
+            return np.array([self.edges[0],self.edges[-1]])
+
     def binCenter(self, ibin):
         if (ibin > 0 & ibin < len(self.data)):
             return  0.5*(self.edges[ibin] + self.edges[ibin+1])
@@ -129,6 +136,9 @@ class MyHist:
         fwhm = self.edges[ihigh]-self.edges[ilow]
         return fwhm
 
+    def Entries(self):
+        return len(self.data)
+
     def binErrors(self):
         # assume unweighted bins, Poisson statis
         errors = np.sqrt(self.data)
@@ -140,10 +150,10 @@ class MyHist:
         if (xrange[1] < xrange[0]):
             return[0,len(self.data)-1]
         istart=0
-        while((istart < len(self.data)) & (self.data[istart]<minval)):
+        while((istart < len(self.data)) & (self.edges[istart]<xrange[0])):
             istart += 1
         iend=len(self.data)-1
-        while((iend > 0) & (self.data[iend]<minval)):
+        while((iend > 0) & (self.edges[iend]>xrange[1])):
             iend -= 1
         iend += 1
         return [istart,iend]
